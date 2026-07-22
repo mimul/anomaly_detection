@@ -3,3 +3,4 @@ pandas>=3.0
 scikit-learn>=1.6
 seaborn>=0.13
 matplotlib>=3.11
+statsmodels>=0.14
