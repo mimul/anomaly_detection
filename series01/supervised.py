@@ -46,7 +46,7 @@ def plot_decision_boundary(clf, df_dropna, X, path, title=None):
                      hue="label", palette=["#999999", "#111111"], ax=ax)
     if title:
         ax.set_title(title)
-    plt.savefig(path, dpi=150)
+    plt.savefig(path, dpi=100)  # 이미지 폭을 600px 이내로 맞춘다 (5in x 100dpi = 500px)
     plt.close()
     print(f"저장됨: {path}")
 
@@ -60,7 +60,9 @@ def run_svm(df_dropna, X, y):
                             os.path.join(OUTPUT_DIR, "svm-boundary.png"))
 
     # 감마 값에 따른 결정 경계와 과적합 경향 비교
-    fig, axes = plt.subplots(nrows=1, ncols=4, figsize=(20, 5))
+    # 블로그 본문 이미지 폭을 600px 이내로 맞추기 위해 1행 4열 대신 2행 2열로 배치한다
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(5, 5))
+    axes = axes.flatten()
     for i, gamma in enumerate([10, 1, 0.1, 0.01]):
         svm_i = SVC(C=10, gamma=gamma)
         clf_i = Pipeline([("scaler", StandardScaler()), ("svm", svm_i)])
@@ -71,10 +73,13 @@ def run_svm(df_dropna, X, y):
             cmap=cm.gray, alpha=0.5, ax=axes[i],
         )
         sns.scatterplot(data=df_dropna, x="temp2", y="temp1",
-                         hue="label", palette=["#999999", "#111111"], ax=axes[i])
-        axes[i].set_title(f"gamma={gamma}", fontsize=16)
+                         hue="label", palette=["#999999", "#111111"], ax=axes[i],
+                         legend=(i == 0))
+        axes[i].set_title(f"gamma={gamma}", fontsize=10)
+        axes[i].tick_params(labelsize=7)
+    plt.tight_layout()
     path = os.path.join(OUTPUT_DIR, "svm-overfitting.png")
-    plt.savefig(path, dpi=150)
+    plt.savefig(path, dpi=100)
     plt.close()
     print(f"저장됨: {path}")
 
@@ -99,7 +104,7 @@ def run_logistic_regression(df_dropna, X, y):
     sns.scatterplot(data=df_dropna, x="temp2", y="temp1",
                      hue="label", palette=["#999999", "#111111"], ax=ax)
     path = os.path.join(OUTPUT_DIR, "logreg-probability.png")
-    plt.savefig(path, dpi=150)
+    plt.savefig(path, dpi=100)  # 이미지 폭을 600px 이내로 맞춘다 (5in x 100dpi = 500px)
     plt.close()
     print(f"저장됨: {path}")
 

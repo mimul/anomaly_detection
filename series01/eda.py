@@ -36,18 +36,27 @@ def print_summary(df_normal):
 
 
 def plot_histogram(df, df_normal_val, df_anomaly_val):
-    fig, axes = plt.subplots(nrows=1, ncols=5, figsize=(20, 4))
+    # 블로그 본문 이미지 폭을 600px 이내로 맞추기 위해 2행 3열 그리드로 배치한다
+    # (5개 변수 + 빈 칸 1개)
+    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(6, 4))
+    axes = axes.flatten()
     for i, colname in enumerate(df_normal_val.columns):
+        # 그래프 안 범례 텍스트는 한글 폰트 미탑재 환경(리눅스 CI 등)에서도
+        # 깨지지 않도록 영어로 표기한다 (normal=정상, anomaly=이상)
         sns.histplot(data=df_normal_val[colname], bins="sturges",
-                     color="#bbbbbb", ax=axes[i], stat="density", label="정상")
+                     color="#bbbbbb", ax=axes[i], stat="density", label="normal")
         sns.histplot(data=df_anomaly_val[colname], bins="sturges",
-                     color="#111111", ax=axes[i], stat="density", label="이상")
-        axes[i].legend()
-        axes[i].set_title(colname, fontsize=14)
+                     color="#111111", ax=axes[i], stat="density", label="anomaly")
+        axes[i].legend(fontsize=7)
+        axes[i].set_title(colname, fontsize=9)
+        axes[i].tick_params(labelsize=7)
+        axes[i].set_xlabel("")
+        axes[i].set_ylabel("")
+    axes[-1].axis("off")  # 5개 변수 + 빈 칸 1개이므로 마지막 칸은 숨긴다
     plt.tight_layout()
 
     path = os.path.join(OUTPUT_DIR, "eda-histogram.png")
-    plt.savefig(path, dpi=150)
+    plt.savefig(path, dpi=100)
     plt.close()
     print(f"저장됨: {path}")
 
@@ -67,14 +76,15 @@ def plot_pca(df):
     X_anomaly_2d = pca.transform(X_anomaly)
 
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5, 5))
+    # 범례 텍스트는 한글 폰트 미탑재 환경에서도 깨지지 않도록 영어로 표기한다
     sns.scatterplot(x=X_normal_2d[:, 0], y=X_normal_2d[:, 1],
-                     color="#999999", ax=ax, label="정상")
+                     color="#999999", ax=ax, label="normal")
     sns.scatterplot(x=X_anomaly_2d[:, 0], y=X_anomaly_2d[:, 1],
-                     color="#111111", ax=ax, label="이상")
+                     color="#111111", ax=ax, label="anomaly")
     ax.legend()
 
     path = os.path.join(OUTPUT_DIR, "eda-pca.png")
-    plt.savefig(path, dpi=150)
+    plt.savefig(path, dpi=100)  # 이미지 폭을 600px 이내로 맞춘다 (5in x 100dpi = 500px)
     plt.close()
     print(f"저장됨: {path}")
 
