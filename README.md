@@ -29,6 +29,12 @@ series03/
     usedcar_train.csv, usedcar_inference.csv           중고차 가격 합성 데이터
     earthquakes_volcanoes_train.csv, _test.csv          국가별 지진·화산 실측 데이터 (아래 "데이터 출처" 참고)
 
+series04/
+  common.py           계절성·추세가 있는 합성 시계열 생성 (점·맥락적·집단적 이상을 각각 하나씩 주입)
+  distance_based.py   거리 기반 중 불일치 기반, Matrix Profile로 discord 탐지
+  density_based.py    밀도 기반 중 트리 기반, 슬라이딩 윈도우 특징 + Isolation Forest
+  prediction_based.py 예측 기반 중 예측 오차 기반, Holt-Winters 지수평활의 한 스텝 앞 예측 오차
+
 outputs/          실행 결과 이미지 저장 위치 (실행 시 자동 생성)
 ```
 
@@ -47,9 +53,13 @@ python series02/nonparametric.py
 
 python series03/regression.py
 python series03/bayesian.py
+
+python series04/distance_based.py
+python series04/density_based.py
+python series04/prediction_based.py
 ```
 
-series01, series02의 대부분 데이터는 고정된 시드로 매번 실행 시 새로 생성되므로 별도의 데이터 생성 스크립트를 먼저 실행할 필요가 없습니다. `series02/count_data.py`의 지진 데이터와 `series03/`의 데이터셋은 모두 `datasets/`에 미리 내려받아둔 파일을 사용합니다.
+series01, series02, series04의 대부분 데이터는 고정된 시드로 매번 실행 시 새로 생성되므로 별도의 데이터 생성 스크립트를 먼저 실행할 필요가 없습니다. `series02/count_data.py`의 지진 데이터와 `series03/`의 데이터셋은 모두 `datasets/`에 미리 내려받아둔 파일을 사용합니다.
 
 모든 스크립트는 저장소 루트 디렉터리에서 실행하는 것을 기준으로 상대 경로(`outputs/`)를 사용합니다. 생성된 이미지는 `outputs/` 아래에 블로그 글에서 쓰는 파일명 그대로 저장됩니다.
 
