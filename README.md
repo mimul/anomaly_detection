@@ -35,6 +35,14 @@ series04/
   density_based.py    밀도 기반 중 트리 기반, 슬라이딩 윈도우 특징 + Isolation Forest
   prediction_based.py 예측 기반 중 예측 오차 기반, Holt-Winters 지수평활의 한 스텝 앞 예측 오차
 
+series05/
+  common.py             1편 데이터셋 재사용 (series01/common.py를 그대로 불러옴)
+  preprocessing.py       결측치 제거, VIF, F값·AIC 기준 Forward 변수선택 비교
+  performance_metrics.py 라벨의 예측 정확도(정확도·적합률·재현율·F값·AU-ROC)와
+                          통계모델 선택의 타당성(로그가능도·AIC·BIC) 비교
+  cross_validation.py    K-fold와 Stratified K-fold의 폴드별 이상 데이터 배분 비교,
+                          홀텔링(비지도)과 로지스틱회귀(지도)의 교차검증 성능 비교
+
 outputs/          실행 결과 이미지 저장 위치 (실행 시 자동 생성)
 ```
 
@@ -57,9 +65,13 @@ python series03/bayesian.py
 python series04/distance_based.py
 python series04/density_based.py
 python series04/prediction_based.py
+
+python series05/preprocessing.py
+python series05/performance_metrics.py
+python series05/cross_validation.py
 ```
 
-series01, series02, series04의 대부분 데이터는 고정된 시드로 매번 실행 시 새로 생성되므로 별도의 데이터 생성 스크립트를 먼저 실행할 필요가 없습니다. `series02/count_data.py`의 지진 데이터와 `series03/`의 데이터셋은 모두 `datasets/`에 미리 내려받아둔 파일을 사용합니다.
+series01, series02, series04의 대부분 데이터는 고정된 시드로 매번 실행 시 새로 생성되므로 별도의 데이터 생성 스크립트를 먼저 실행할 필요가 없습니다. series05는 1편(series01)의 데이터셋을 그대로 재사용합니다. `series02/count_data.py`의 지진 데이터와 `series03/`의 데이터셋은 모두 `datasets/`에 미리 내려받아둔 파일을 사용합니다.
 
 모든 스크립트는 저장소 루트 디렉터리에서 실행하는 것을 기준으로 상대 경로(`outputs/`)를 사용합니다. 생성된 이미지는 `outputs/` 아래에 블로그 글에서 쓰는 파일명 그대로 저장됩니다.
 
