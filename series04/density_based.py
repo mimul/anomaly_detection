@@ -24,22 +24,22 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 WINDOW = 20
 
 
-def extract_window_features(y, w):
+def extract_window_features(series, window_len):
     """길이 w인 슬라이딩 윈도우마다 평균·표준편차·범위·기울기를 추출한다"""
-    n = len(y)
+    n_points = len(series)
     centers, feats = [], []
-    for i in range(n - w + 1):
-        seg = y[i:i + w]
-        slope = np.polyfit(np.arange(w), seg, 1)[0]
-        feats.append([seg.mean(), seg.std(), seg.max() - seg.min(), slope])
-        centers.append(i + w // 2)
+    for i in range(n_points - window_len + 1):
+        window_vals = series[i:i + window_len]
+        slope = np.polyfit(np.arange(window_len), window_vals, 1)[0]
+        feats.append([window_vals.mean(), window_vals.std(), window_vals.max() - window_vals.min(), slope])
+        centers.append(i + window_len // 2)
     return np.array(centers), np.array(feats)
 
 
 def tree_based_anomaly_detection():
     """윈도우 특징에 Isolation Forest를 적합해 이상 구간의 중심 시점을 판정한다"""
-    _, y, label, anomalies = generate_timeseries()
-    centers, feats = extract_window_features(y, WINDOW)
+    _, series, label, anomalies = generate_timeseries()
+    centers, feats = extract_window_features(series, WINDOW)
 
     clf = IsolationForest(n_estimators=200, contamination=0.05, random_state=42)
     pred = clf.fit_predict(feats)  # -1: 이상, 1: 정상
@@ -53,10 +53,10 @@ def tree_based_anomaly_detection():
         print(f"  - {a['type']} 이상(구간 {a['start']}~{a['end']}) 탐지 여부: {hit}")
 
     fig, ax = plt.subplots(figsize=(7, 3.5))
-    ax.plot(y, color="#999999", lw=1)
+    ax.plot(series, color="#999999", lw=1)
     for a in anomalies:
         ax.axvspan(a["start"] - 0.5, a["end"] + 0.5, color="#111111", alpha=0.15)
-    ax.scatter(flagged_centers, y[flagged_centers], color="#111111", s=20, zorder=3,
+    ax.scatter(flagged_centers, series[flagged_centers], color="#111111", s=20, zorder=3,
                label="Isolation Forest flagged window center")
     ax.set_xlabel("time")
     ax.set_ylabel("value")

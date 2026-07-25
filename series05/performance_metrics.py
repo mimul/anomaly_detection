@@ -35,24 +35,24 @@ VARS = ["temp2", "temp1"]
 
 
 def _hotelling_fit(df_train_normal):
-    mu = df_train_normal[VARS].mean().to_numpy()
-    sigma = np.cov(df_train_normal[VARS].to_numpy().T, ddof=0)
-    return mu, sigma
+    mean_vec = df_train_normal[VARS].mean().to_numpy()
+    cov_matrix = np.cov(df_train_normal[VARS].to_numpy().T, ddof=0)
+    return mean_vec, cov_matrix
 
 
-def _anomaly_score(df, mu, sigma):
-    dev = df[VARS].to_numpy() - mu
-    return np.sum(dev @ np.linalg.inv(sigma) * dev, axis=1)
+def _anomaly_score(df, mean_vec, cov_matrix):
+    centered = df[VARS].to_numpy() - mean_vec
+    return np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
 
 
-def label_based_metrics(mu, sigma, df_inf):
+def label_based_metrics(mean_vec, cov_matrix, df_inf):
     """라벨의 예측 정확도(정확도, 적합률, 재현율, F값, AU-ROC)를 계산한다"""
-    score = _anomaly_score(df_inf, mu, sigma)
-    a_th = stats.chi2.ppf(1 - TARGET_FP_RATE, df=len(VARS))
+    score = _anomaly_score(df_inf, mean_vec, cov_matrix)
+    anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=len(VARS))
     y_true = df_inf["label"].to_numpy()
-    y_pred = np.where(score > a_th, "anomaly", "normal")
+    y_pred = np.where(score > anomaly_threshold, "anomaly", "normal")
 
-    cm = confusion_matrix(y_true, y_pred, labels=["normal", "anomaly"])
+    conf_matrix = confusion_matrix(y_true, y_pred, labels=["normal", "anomaly"])
     accuracy = accuracy_score(y_true, y_pred)
     precision = precision_score(y_true, y_pred, pos_label="anomaly")
     recall = recall_score(y_true, y_pred, pos_label="anomaly")
@@ -62,7 +62,7 @@ def label_based_metrics(mu, sigma, df_inf):
     auroc = auc(fpr, tpr)
     prec_curve, rec_curve, _ = precision_recall_curve(y_true, score, pos_label="anomaly")
 
-    print(f"[라벨의 예측 정확도] 혼동행렬(행:실제, 열:예측, 순서 normal/anomaly)\n{cm}")
+    print(f"[라벨의 예측 정확도] 혼동행렬(행:실제, 열:예측, 순서 normal/anomaly)\n{conf_matrix}")
     print(f"[라벨의 예측 정확도] accuracy={accuracy:.3f}, precision={precision:.3f}, "
           f"recall={recall:.3f}, f1={f1:.3f}, AU-ROC={auroc:.4f}")
 
@@ -88,17 +88,17 @@ def label_based_metrics(mu, sigma, df_inf):
     return accuracy, precision, recall, f1, auroc
 
 
-def statistical_model_metrics(df_train_normal, mu, sigma):
+def statistical_model_metrics(df_train_normal, mean_vec, cov_matrix):
     """통계모델 선택의 타당성(로그가능도, AIC, BIC)을 계산한다"""
-    n, n_features = len(df_train_normal), len(VARS)
-    score = _anomaly_score(df_train_normal, mu, sigma)
+    n_samples, n_features = len(df_train_normal), len(VARS)
+    score = _anomaly_score(df_train_normal, mean_vec, cov_matrix)
     log_likelihood = (
-        -n * (n_features / 2 * np.log(2 * np.pi) + 0.5 * np.log(np.linalg.det(sigma)))
+        -n_samples * (n_features / 2 * np.log(2 * np.pi) + 0.5 * np.log(np.linalg.det(cov_matrix)))
         - 0.5 * np.sum(score)
     )
-    k = n_features + n_features * (n_features + 1) / 2
-    aic = 2 * k - 2 * log_likelihood
-    bic = np.log(n) * k - 2 * log_likelihood
+    n_params = n_features + n_features * (n_features + 1) / 2
+    aic = 2 * n_params - 2 * log_likelihood
+    bic = np.log(n_samples) * n_params - 2 * log_likelihood
     print(f"[통계모델 선택의 타당성] log_likelihood={log_likelihood:.2f}, "
           f"AIC={aic:.2f}, BIC={bic:.2f}")
     return log_likelihood, aic, bic
@@ -110,6 +110,6 @@ if __name__ == "__main__":
     df_inference = df_inference.dropna(subset=VARS)
     df_train_normal = df_train[df_train["label"] == "normal"]
 
-    mu_fit, sigma_fit = _hotelling_fit(df_train_normal)
-    label_based_metrics(mu_fit, sigma_fit, df_inference)
-    statistical_model_metrics(df_train_normal, mu_fit, sigma_fit)
+    mean_vec_fit, cov_matrix_fit = _hotelling_fit(df_train_normal)
+    label_based_metrics(mean_vec_fit, cov_matrix_fit, df_inference)
+    statistical_model_metrics(df_train_normal, mean_vec_fit, cov_matrix_fit)

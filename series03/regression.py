@@ -33,26 +33,26 @@ def linear_regression_anomaly_detection():
 
     X_train_intercept = sm.add_constant(x_train)
     res = sm.OLS(y_train, X_train_intercept).fit()
-    w_1, w_0 = res.params[1], res.params[0]
-    sigma2 = res.scale * res.df_resid / len(y_train)
+    slope, intercept = res.params[1], res.params[0]
+    residual_var = res.scale * res.df_resid / len(y_train)
 
-    train_score = (y_train - w_1 * x_train - w_0) ** 2 / sigma2
-    a_th = np.quantile(train_score, 1 - TARGET_FP_RATE)
-    print(f"[선형회귀] w_1={w_1:.3f}, w_0={w_0:.3f}, sigma2={sigma2:.2f}, a_th={a_th:.4f}")
+    train_score = (y_train - slope * x_train - intercept) ** 2 / residual_var
+    anomaly_threshold = np.quantile(train_score, 1 - TARGET_FP_RATE)
+    print(f"[선형회귀] slope={slope:.3f}, intercept={intercept:.3f}, residual_var={residual_var:.2f}, anomaly_threshold={anomaly_threshold:.4f}")
 
     x_inf, y_inf = df_inference["year"].to_numpy(), df_inference["price"].to_numpy()
-    score_inf = (y_inf - w_1 * x_inf - w_0) ** 2 / sigma2
-    pred = np.where(score_inf > a_th, "anomaly", "normal")
+    score_inf = (y_inf - slope * x_inf - intercept) ** 2 / residual_var
+    pred = np.where(score_inf > anomaly_threshold, "anomaly", "normal")
     print(f"[선형회귀] 추론 데이터 이상 판정 수={sum(pred == 'anomaly')} / {len(pred)}")
 
     x_grid = np.arange(x_inf.min() - 1, x_inf.max() + 2)
     y_grid = np.linspace(y_inf.min() - 50, y_inf.max() + 50, 500)
-    X, Y = np.meshgrid(x_grid, y_grid)
-    score_grid = (Y - w_1 * X - w_0) ** 2 / sigma2
-    pred_grid = np.where(score_grid > a_th, 0, 1)
+    mesh_x, mesh_y = np.meshgrid(x_grid, y_grid)
+    score_grid = (mesh_y - slope * mesh_x - intercept) ** 2 / residual_var
+    pred_grid = np.where(score_grid > anomaly_threshold, 0, 1)
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.contourf(X, Y, pred_grid, levels=1, cmap=cm.gray, alpha=0.5)
+    ax.contourf(mesh_x, mesh_y, pred_grid, levels=1, cmap=cm.gray, alpha=0.5)
     sns.scatterplot(x=x_inf, y=y_inf, hue=df_inference["label"],
                      hue_order=["normal", "anomaly"], palette=["#999999", "#111111"], ax=ax)
     ax.set_xlabel("year")
@@ -72,7 +72,7 @@ def _plot_multivariate_grid(model_cols, model_cat_names, dropped_name,
     y_min, y_max = df_inference["price"].min(), df_inference["price"].max()
     x_grid = np.linspace(x_min - 1, x_max + 2, 80)
     y_grid = np.linspace(y_min - 50, y_max + 50, 150)
-    X, Y = np.meshgrid(x_grid, y_grid)
+    mesh_x, mesh_y = np.meshgrid(x_grid, y_grid)
 
     for col_idx, model_name in enumerate(model_cols):
         if model_name == dropped_name:
@@ -83,13 +83,13 @@ def _plot_multivariate_grid(model_cols, model_cat_names, dropped_name,
         df_model = df_inference[df_inference["model_name"] == model_name]
         for row_idx, year in enumerate(YEARS_TO_SHOW):
             ax = axes[row_idx][col_idx]
-            n_grid = X.size
+            n_grid = mesh_x.size
             X_grid_features = np.column_stack([
-                np.full(n_grid, year), X.ravel(),
+                np.full(n_grid, year), mesh_x.ravel(),
                 np.tile(onehot, (n_grid, 1)) if len(onehot) else np.empty((n_grid, 0)),
             ])
-            pred_grid = predict_fn(X_grid_features, Y.ravel()).reshape(X.shape)
-            ax.contourf(X, Y, pred_grid, levels=1, cmap=cm.gray, alpha=0.5)
+            pred_grid = predict_fn(X_grid_features, mesh_y.ravel()).reshape(mesh_x.shape)
+            ax.contourf(mesh_x, mesh_y, pred_grid, levels=1, cmap=cm.gray, alpha=0.5)
 
             df_year = df_model[df_model["year"] == year]
             sns.scatterplot(data=df_year, x="odometer", y="price", hue="label",
@@ -115,23 +115,23 @@ def multivariate_regression_anomaly_detection():
 
     X_train_intercept = sm.add_constant(X_train)
     res = sm.OLS(y_train, X_train_intercept).fit()
-    w, w_0 = res.params[1:], res.params[0]
-    sigma2 = res.scale * res.df_resid / len(y_train)
+    coef, intercept = res.params[1:], res.params[0]
+    residual_var = res.scale * res.df_resid / len(y_train)
 
-    train_score = (y_train - X_train @ w - w_0) ** 2 / sigma2
-    a_th = np.quantile(train_score, 1 - TARGET_FP_RATE)
-    print(f"[다변량 선형회귀] w={np.round(w, 3)}, w_0={w_0:.3f}, "
-          f"sigma2={sigma2:.2f}, a_th={a_th:.4f}")
+    train_score = (y_train - X_train @ coef - intercept) ** 2 / residual_var
+    anomaly_threshold = np.quantile(train_score, 1 - TARGET_FP_RATE)
+    print(f"[다변량 선형회귀] coef={np.round(coef, 3)}, intercept={intercept:.3f}, "
+          f"residual_var={residual_var:.2f}, anomaly_threshold={anomaly_threshold:.4f}")
 
     X_inf = df_inference[feature_cols].to_numpy()
     y_inf = df_inference["price"].to_numpy()
-    score_inf = (y_inf - X_inf @ w - w_0) ** 2 / sigma2
-    pred = np.where(score_inf > a_th, "anomaly", "normal")
+    score_inf = (y_inf - X_inf @ coef - intercept) ** 2 / residual_var
+    pred = np.where(score_inf > anomaly_threshold, "anomaly", "normal")
     print(f"[다변량 선형회귀] 추론 데이터 이상 판정 수={sum(pred == 'anomaly')} / {len(pred)}")
 
     def predict_fn(X_features, y_values):
-        score = (y_values - X_features @ w - w_0) ** 2 / sigma2
-        return np.where(score > a_th, 0, 1)
+        score = (y_values - X_features @ coef - intercept) ** 2 / residual_var
+        return np.where(score > anomaly_threshold, 0, 1)
 
     model_cols = list(enc.categories_[0])
     dropped_name = enc.categories_[0][0]
@@ -151,40 +151,40 @@ def ridge_regression_anomaly_detection():
     LAMBDA = 2.0
     alpha = LAMBDA / 2 / len(y_train)
     res = mod.fit_regularized(alpha=alpha, L1_wt=0)
-    u = res.params
+    ridge_coef = res.params
 
     design_matrix = np.concatenate([np.ones((len(y_train), 1)), X_train], axis=1)
-    rss = np.sum((y_train - design_matrix @ u) ** 2)
-    sigma2 = (rss + LAMBDA * np.sum(u * u)) / len(y_train)
+    rss = np.sum((y_train - design_matrix @ ridge_coef) ** 2)
+    residual_var = (rss + LAMBDA * np.sum(ridge_coef * ridge_coef)) / len(y_train)
 
     n_features = X_train_intercept.shape[1]
-    A = design_matrix.T @ design_matrix + LAMBDA * np.eye(n_features)
-    A_inv = np.linalg.inv(A)
-    sx_train = 1 + np.sum(design_matrix @ A_inv * design_matrix, axis=1)
+    gram_matrix = design_matrix.T @ design_matrix + LAMBDA * np.eye(n_features)
+    gram_matrix_inv = np.linalg.inv(gram_matrix)
+    leverage_train = 1 + np.sum(design_matrix @ gram_matrix_inv * design_matrix, axis=1)
 
-    first_anom = np.log(2 * np.pi * sigma2 * sx_train) / 2
-    second_anom = (y_train - design_matrix @ u) ** 2 / (2 * sigma2 * sx_train)
-    train_score = first_anom + second_anom
-    a_th = np.quantile(train_score, 1 - TARGET_FP_RATE)
-    print(f"[리지회귀] u={np.round(u, 3)}, sigma2={sigma2:.2f}, a_th={a_th:.4f}")
+    log_term_train = np.log(2 * np.pi * residual_var * leverage_train) / 2
+    sq_term_train = (y_train - design_matrix @ ridge_coef) ** 2 / (2 * residual_var * leverage_train)
+    train_score = log_term_train + sq_term_train
+    anomaly_threshold = np.quantile(train_score, 1 - TARGET_FP_RATE)
+    print(f"[리지회귀] ridge_coef={np.round(ridge_coef, 3)}, residual_var={residual_var:.2f}, anomaly_threshold={anomaly_threshold:.4f}")
 
     X_inf = df_inference[feature_cols].to_numpy()
     y_inf = df_inference["price"].to_numpy()
     design_inf = np.concatenate([np.ones((len(y_inf), 1)), X_inf], axis=1)
-    sx_inf = 1 + np.sum(design_inf @ A_inv * design_inf, axis=1)
-    first_inf = np.log(2 * np.pi * sigma2 * sx_inf) / 2
-    second_inf = (y_inf - design_inf @ u) ** 2 / (2 * sigma2 * sx_inf)
-    score_inf = first_inf + second_inf
-    pred = np.where(score_inf > a_th, "anomaly", "normal")
+    leverage_inf = 1 + np.sum(design_inf @ gram_matrix_inv * design_inf, axis=1)
+    log_term_inf = np.log(2 * np.pi * residual_var * leverage_inf) / 2
+    sq_term_inf = (y_inf - design_inf @ ridge_coef) ** 2 / (2 * residual_var * leverage_inf)
+    score_inf = log_term_inf + sq_term_inf
+    pred = np.where(score_inf > anomaly_threshold, "anomaly", "normal")
     print(f"[리지회귀] 추론 데이터 이상 판정 수={sum(pred == 'anomaly')} / {len(pred)}")
 
     def predict_fn(X_features, y_values):
         design = np.concatenate([np.ones((len(X_features), 1)), X_features], axis=1)
-        sx = 1 + np.sum(design @ A_inv * design, axis=1)
-        first = np.log(2 * np.pi * sigma2 * sx) / 2
-        second = (y_values - design @ u) ** 2 / (2 * sigma2 * sx)
-        score = first + second
-        return np.where(score > a_th, 0, 1)
+        leverage = 1 + np.sum(design @ gram_matrix_inv * design, axis=1)
+        log_term = np.log(2 * np.pi * residual_var * leverage) / 2
+        sq_term = (y_values - design @ ridge_coef) ** 2 / (2 * residual_var * leverage)
+        score = log_term + sq_term
+        return np.where(score > anomaly_threshold, 0, 1)
 
     model_cols = list(enc.categories_[0])
     dropped_name = enc.categories_[0][0]
@@ -201,28 +201,28 @@ def gamma_regression_anomaly_detection():
     family = sm.families.Gamma(sm.families.links.Log())
     res = sm.GLM(y_train, X_train_intercept, family=family).fit()
 
-    gen_train = res.get_distribution(exog=X_train_intercept)
-    train_score = -np.log(gen_train.pdf(y_train))
-    a_th = np.quantile(train_score, 1 - TARGET_FP_RATE)
-    print(f"[감마회귀] a_th={a_th:.4f}")
+    train_dist = res.get_distribution(exog=X_train_intercept)
+    train_score = -np.log(train_dist.pdf(y_train))
+    anomaly_threshold = np.quantile(train_score, 1 - TARGET_FP_RATE)
+    print(f"[감마회귀] anomaly_threshold={anomaly_threshold:.4f}")
 
     x_inf, y_inf = df_inference["year"].to_numpy(), df_inference["price"].to_numpy()
     X_inf_intercept = sm.add_constant(x_inf)
-    gen_inf = res.get_distribution(exog=X_inf_intercept)
-    score_inf = -np.log(gen_inf.pdf(y_inf))
-    pred = np.where(score_inf > a_th, "anomaly", "normal")
+    inf_dist = res.get_distribution(exog=X_inf_intercept)
+    score_inf = -np.log(inf_dist.pdf(y_inf))
+    pred = np.where(score_inf > anomaly_threshold, "anomaly", "normal")
     print(f"[감마회귀] 추론 데이터 이상 판정 수={sum(pred == 'anomaly')} / {len(pred)}")
 
     x_grid = np.arange(x_inf.min() - 1, x_inf.max() + 2)
     y_grid = np.linspace(y_inf.min() - 50, y_inf.max() + 50, 500)
-    X, Y = np.meshgrid(x_grid, y_grid)
-    X_grid_intercept = sm.add_constant(X.ravel())
-    gen_grid = res.get_distribution(exog=X_grid_intercept)
-    score_grid = (-np.log(gen_grid.pdf(Y.ravel()))).reshape(X.shape)
-    pred_grid = np.where(score_grid > a_th, 0, 1)
+    mesh_x, mesh_y = np.meshgrid(x_grid, y_grid)
+    X_grid_intercept = sm.add_constant(mesh_x.ravel())
+    grid_dist = res.get_distribution(exog=X_grid_intercept)
+    score_grid = (-np.log(grid_dist.pdf(mesh_y.ravel()))).reshape(mesh_x.shape)
+    pred_grid = np.where(score_grid > anomaly_threshold, 0, 1)
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.contourf(X, Y, pred_grid, levels=1, cmap=cm.gray, alpha=0.5)
+    ax.contourf(mesh_x, mesh_y, pred_grid, levels=1, cmap=cm.gray, alpha=0.5)
     sns.scatterplot(x=x_inf, y=y_inf, hue=df_inference["label"],
                      hue_order=["normal", "anomaly"], palette=["#999999", "#111111"], ax=ax)
     ax.set_xlabel("year")

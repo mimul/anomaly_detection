@@ -18,16 +18,16 @@ def load_usedcar_data():
     df_train_normal = df_train[df_train["label"] == "normal"]
     df_inference = pd.read_csv("series03/datasets/usedcar_inference.csv")
 
-    enc = OneHotEncoder(drop="first")
-    enc.fit(df_train_normal[["model_name"]].to_numpy())
-    cat_names = [f"model_name_{c}" for c in enc.categories_[0][1:]]
+    encoder = OneHotEncoder(drop="first")
+    encoder.fit(df_train_normal[["model_name"]].to_numpy())
+    cat_names = [f"model_name_{c}" for c in encoder.categories_[0][1:]]
 
     def _encode(df):
         """원-핫 인코딩 열을 덧붙이되, 표시용으로 model_name 원본 열은 그대로 남긴다"""
-        cat = enc.transform(df[["model_name"]].to_numpy()).toarray()
-        df_cat = pd.DataFrame(cat, columns=cat_names, index=df.index)
+        onehot_array = encoder.transform(df[["model_name"]].to_numpy()).toarray()
+        df_cat = pd.DataFrame(onehot_array, columns=cat_names, index=df.index)
         return pd.concat([df, df_cat], axis=1)
 
     df_train_encoded = _encode(df_train_normal)
     df_inference_encoded = _encode(df_inference)
-    return df_train_encoded, df_inference_encoded, cat_names, enc
+    return df_train_encoded, df_inference_encoded, cat_names, encoder

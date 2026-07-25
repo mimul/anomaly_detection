@@ -110,29 +110,29 @@ def bayesian_logistic_regression():
     y_train = df_train["FG3M"].to_numpy(dtype=float)
     n_train = df_train["FG3A"].to_numpy(dtype=float)
     x_mean = x_train.mean()
-    xc_train = x_train - x_mean
+    x_train_centered = x_train - x_mean
 
-    def log_posterior(w0, w1):
-        rho = np.clip(w0 + w1 * xc_train, -30, 30)
-        mu = 1 / (1 + np.exp(-rho))
-        mu = np.clip(mu, 1e-10, 1 - 1e-10)
-        log_likelihood = np.sum(stats.binom.logpmf(y_train, n_train, mu))
-        log_prior = stats.norm.logpdf(w0, 0, 100) + stats.norm.logpdf(w1, 0, 100)
+    def log_posterior(intercept, slope):
+        linear_pred = np.clip(intercept + slope * x_train_centered, -30, 30)
+        success_prob = 1 / (1 + np.exp(-linear_pred))
+        success_prob = np.clip(success_prob, 1e-10, 1 - 1e-10)
+        log_likelihood = np.sum(stats.binom.logpmf(y_train, n_train, success_prob))
+        log_prior = stats.norm.logpdf(intercept, 0, 100) + stats.norm.logpdf(slope, 0, 100)
         return log_likelihood + log_prior
 
     posterior = metropolis_hastings(log_posterior, init=[0.0, 0.0],
                                      step=[0.006, 0.0012])
-    w0_samples, w1_samples = posterior[:, 0], posterior[:, 1]
-    print(f"[이항 로지스틱 회귀] w0={w0_samples.mean():.4f}±{w0_samples.std():.4f}, "
-          f"w1={w1_samples.mean():.4f}±{w1_samples.std():.4f} (사후평균±사후표준편차)")
+    intercept_samples, slope_samples = posterior[:, 0], posterior[:, 1]
+    print(f"[이항 로지스틱 회귀] intercept={intercept_samples.mean():.4f}±{intercept_samples.std():.4f}, "
+          f"slope={slope_samples.mean():.4f}±{slope_samples.std():.4f} (사후평균±사후표준편차)")
 
     x_inf = df_inf["AGE"].to_numpy(dtype=float)
     n_inf = df_inf["FG3A"].to_numpy(dtype=int)
     y_inf = df_inf["FG3M"].to_numpy(dtype=float)
-    rho_inf = w0_samples[:, None] + w1_samples[:, None] * (x_inf[None, :] - x_mean)
-    mu_inf = 1 / (1 + np.exp(-rho_inf))
+    linear_pred_inf = intercept_samples[:, None] + slope_samples[:, None] * (x_inf[None, :] - x_mean)
+    success_prob_inf = 1 / (1 + np.exp(-linear_pred_inf))
     rng_inf = np.random.default_rng(42)
-    draws_inf = rng_inf.binomial(n_inf[None, :], mu_inf)
+    draws_inf = rng_inf.binomial(n_inf[None, :], success_prob_inf)
     th_lower_inf = np.quantile(draws_inf, TARGET_FP_RATE / 2, axis=0)
     th_upper_inf = np.quantile(draws_inf, 1 - TARGET_FP_RATE / 2, axis=0)
     pred_inf = np.where((y_inf < th_lower_inf) | (y_inf > th_upper_inf), "anomaly", "normal")
@@ -144,10 +144,10 @@ def bayesian_logistic_regression():
 
     # MCMC 표본이 어떻게 수렴하는지 보여주는 트레이스 플롯 (8.3절 MCMC 개념)
     fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(6, 3.5))
-    axes[0].plot(w0_samples, color="#333333", lw=0.5)
-    axes[0].set_ylabel("w0 (intercept)")
-    axes[1].plot(w1_samples, color="#333333", lw=0.5)
-    axes[1].set_ylabel("w1 (slope)")
+    axes[0].plot(intercept_samples, color="#333333", lw=0.5)
+    axes[0].set_ylabel("intercept")
+    axes[1].plot(slope_samples, color="#333333", lw=0.5)
+    axes[1].set_ylabel("slope")
     axes[1].set_xlabel("MCMC sample (post burn-in)")
     plt.tight_layout()
     path = os.path.join(OUTPUT_DIR, "mcmc-trace.png")
@@ -157,16 +157,16 @@ def bayesian_logistic_regression():
 
     # 나이에 따른 성공률 평균과 신용구간(credible interval)
     x_grid = np.linspace(19, 43, 100)
-    xc_grid = x_grid - x_mean
-    rho_grid = w0_samples[:, None] + w1_samples[:, None] * xc_grid[None, :]
-    mu_grid = 1 / (1 + np.exp(-rho_grid))
-    mu_mean = mu_grid.mean(axis=0)
-    mu_lower = np.quantile(mu_grid, TARGET_FP_RATE / 2, axis=0)
-    mu_upper = np.quantile(mu_grid, 1 - TARGET_FP_RATE / 2, axis=0)
+    x_grid_centered = x_grid - x_mean
+    linear_pred_grid = intercept_samples[:, None] + slope_samples[:, None] * x_grid_centered[None, :]
+    success_prob_grid = 1 / (1 + np.exp(-linear_pred_grid))
+    success_prob_mean = success_prob_grid.mean(axis=0)
+    success_prob_lower = np.quantile(success_prob_grid, TARGET_FP_RATE / 2, axis=0)
+    success_prob_upper = np.quantile(success_prob_grid, 1 - TARGET_FP_RATE / 2, axis=0)
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.fill_between(x_grid, mu_lower, mu_upper, color="#dddddd", label="credible region")
-    ax.plot(x_grid, mu_mean, color="#111111", lw=1.5)
+    ax.fill_between(x_grid, success_prob_lower, success_prob_upper, color="#dddddd", label="credible region")
+    ax.plot(x_grid, success_prob_mean, color="#111111", lw=1.5)
     df_100 = df_train[df_train["FG3A"] > 100].copy()
     df_100["3P%"] = df_100["FG3M"] / df_100["FG3A"]
     sns.scatterplot(data=df_100, x="AGE", y="3P%", color="#555555", s=18, ax=ax)
@@ -181,13 +181,13 @@ def bayesian_logistic_regression():
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(6, 3.2))
     n_line = np.arange(1, 751)
     for ax, age_rep, title in zip(axes, [25, 35], ["AGE=25", "AGE=35"]):
-        rho_rep = w0_samples + w1_samples * (age_rep - x_mean)
-        mu_rep = 1 / (1 + np.exp(-rho_rep))
+        linear_pred_rep = intercept_samples + slope_samples * (age_rep - x_mean)
+        success_prob_rep = 1 / (1 + np.exp(-linear_pred_rep))
         # n마다 이항분포의 예측분포 표본을 만들어 하한·상한 임계값 계산
         lower, upper = np.zeros_like(n_line, dtype=float), np.zeros_like(n_line, dtype=float)
         rng = np.random.default_rng(42)
         for i, n in enumerate(n_line):
-            draws = rng.binomial(n, mu_rep)
+            draws = rng.binomial(n, success_prob_rep)
             lower[i] = np.quantile(draws, TARGET_FP_RATE / 2)
             upper[i] = np.quantile(draws, 1 - TARGET_FP_RATE / 2)
         ax.fill_between(n_line, lower / n_line, upper / n_line, color="#dddddd")
@@ -218,27 +218,27 @@ def bayesian_poisson_regression():
     x_train = df_train["active_since_1800"].to_numpy(dtype=float)
     y_train = df_train["earthquakes"].to_numpy(dtype=float)
     x_mean = x_train.mean()
-    xc_train = x_train - x_mean
+    x_train_centered = x_train - x_mean
 
-    def log_posterior(w0, w1):
-        rho = np.clip(w0 + w1 * xc_train, -30, 30)
-        mu = np.exp(rho)
-        log_likelihood = np.sum(stats.poisson.logpmf(y_train, mu))
-        log_prior = stats.norm.logpdf(w0, 0, 100) + stats.norm.logpdf(w1, 0, 100)
+    def log_posterior(intercept, slope):
+        linear_pred = np.clip(intercept + slope * x_train_centered, -30, 30)
+        rate = np.exp(linear_pred)
+        log_likelihood = np.sum(stats.poisson.logpmf(y_train, rate))
+        log_prior = stats.norm.logpdf(intercept, 0, 100) + stats.norm.logpdf(slope, 0, 100)
         return log_likelihood + log_prior
 
     posterior = metropolis_hastings(log_posterior, init=[0.0, 0.0],
                                      step=[0.05, 0.004])
-    w0_samples, w1_samples = posterior[:, 0], posterior[:, 1]
-    print(f"[포아송 회귀] w0={w0_samples.mean():.4f}±{w0_samples.std():.4f}, "
-          f"w1={w1_samples.mean():.4f}±{w1_samples.std():.4f} (사후평균±사후표준편차)")
+    intercept_samples, slope_samples = posterior[:, 0], posterior[:, 1]
+    print(f"[포아송 회귀] intercept={intercept_samples.mean():.4f}±{intercept_samples.std():.4f}, "
+          f"slope={slope_samples.mean():.4f}±{slope_samples.std():.4f} (사후평균±사후표준편차)")
 
     x_inf = df_inf["active_since_1800"].to_numpy(dtype=float)
     y_inf = df_inf["earthquakes"].to_numpy(dtype=float)
-    rho_inf = w0_samples[:, None] + w1_samples[:, None] * (x_inf[None, :] - x_mean)
-    mu_inf = np.exp(rho_inf)
+    linear_pred_inf = intercept_samples[:, None] + slope_samples[:, None] * (x_inf[None, :] - x_mean)
+    rate_inf = np.exp(linear_pred_inf)
     rng = np.random.default_rng(42)
-    draws_inf = rng.poisson(mu_inf)  # shape (n_samples, n_inference)
+    draws_inf = rng.poisson(rate_inf)  # shape (n_samples, n_inference)
     th_lower = np.quantile(draws_inf, TARGET_FP_RATE / 2, axis=0)
     th_upper = np.quantile(draws_inf, 1 - TARGET_FP_RATE / 2, axis=0)
     pred = np.where((y_inf < th_lower) | (y_inf > th_upper), "anomaly", "normal")
@@ -247,9 +247,9 @@ def bayesian_poisson_regression():
     print(f"[포아송 회귀] 이상 판정 상세:\n{df_anomaly.to_string(index=False)}")
 
     x_line = np.linspace(0, 75, 60)
-    rho_line = w0_samples[:, None] + w1_samples[:, None] * (x_line[None, :] - x_mean)
-    mu_line = np.exp(rho_line)
-    draws_line = rng.poisson(mu_line)
+    linear_pred_line = intercept_samples[:, None] + slope_samples[:, None] * (x_line[None, :] - x_mean)
+    rate_line = np.exp(linear_pred_line)
+    draws_line = rng.poisson(rate_line)
     lower_line = np.quantile(draws_line, TARGET_FP_RATE / 2, axis=0)
     upper_line = np.quantile(draws_line, 1 - TARGET_FP_RATE / 2, axis=0)
 

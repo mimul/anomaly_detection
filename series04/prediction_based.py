@@ -27,55 +27,55 @@ TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐
 
 def forecasting_based_anomaly_detection():
     """정상 구간에서 적합한 지수평활 계수로, 추론 구간의 한 스텝 앞 예측 오차를 구한다"""
-    train_y, y, label, anomalies = generate_timeseries()
-    m = SEASONAL_PERIOD
+    train_y, series, label, anomalies = generate_timeseries()
+    period = SEASONAL_PERIOD
 
     fit = ExponentialSmoothing(
-        train_y, trend="add", seasonal="add", seasonal_periods=m,
+        train_y, trend="add", seasonal="add", seasonal_periods=period,
         initialization_method="estimated",
     ).fit()
     alpha = fit.params["smoothing_level"]
     beta = fit.params["smoothing_trend"]
     gamma = fit.params["smoothing_seasonal"]
-    sigma = np.std(fit.resid)
+    resid_std = np.std(fit.resid)
     print(f"[예측 오차 기반] alpha={alpha:.3f}, beta={beta:.3f}, gamma={gamma:.3f}, "
-          f"학습 잔차 sigma={sigma:.3f}")
+          f"학습 잔차 resid_std={resid_std:.3f}")
 
     level = fit.level[-1]
     trend = fit.trend[-1]
-    season = list(fit.season[-m:])  # season[k]는 t % m == k 시점의 계절 성분
+    season = list(fit.season[-period:])  # season[phase]는 t % period == phase 시점의 계절 성분
 
-    n = len(y)
-    yhat = np.zeros(n)
-    for j in range(n):
-        k = j % m
-        yhat[j] = level + trend + season[k]
-        resid = y[j] - yhat[j]
-        new_level = alpha * (y[j] - season[k]) + (1 - alpha) * (level + trend)
+    n_points = len(series)
+    forecast = np.zeros(n_points)
+    for j in range(n_points):
+        phase = j % period
+        forecast[j] = level + trend + season[phase]
+        resid = series[j] - forecast[j]
+        new_level = alpha * (series[j] - season[phase]) + (1 - alpha) * (level + trend)
         trend = beta * (new_level - level) + (1 - beta) * trend
         level = new_level
-        season[k] = gamma * (y[j] - level) + (1 - gamma) * season[k]
+        season[phase] = gamma * (series[j] - level) + (1 - gamma) * season[phase]
 
-    score = ((y - yhat) / sigma) ** 2
-    a_th = stats.chi2.ppf(1 - TARGET_FP_RATE, df=1)
-    pred = np.where(score > a_th, "anomaly", "normal")
+    score = ((series - forecast) / resid_std) ** 2
+    anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=1)
+    pred = np.where(score > anomaly_threshold, "anomaly", "normal")
 
-    print(f"[예측 오차 기반] threshold={a_th:.3f}, 이상 판정 시점 수={sum(pred == 'anomaly')}"
-          f" / 전체 {n}")
+    print(f"[예측 오차 기반] threshold={anomaly_threshold:.3f}, 이상 판정 시점 수={sum(pred == 'anomaly')}"
+          f" / 전체 {n_points}")
     for a in anomalies:
         hit = np.any(pred[a["start"]:a["end"] + 1] == "anomaly")
         print(f"  - {a['type']} 이상(구간 {a['start']}~{a['end']}) 탐지 여부: {hit}")
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5), sharex=True)
-    ax1.plot(y, color="#999999", lw=1, label="observed")
-    ax1.plot(yhat, color="#111111", lw=1, ls="--", label="1-step forecast")
+    ax1.plot(series, color="#999999", lw=1, label="observed")
+    ax1.plot(forecast, color="#111111", lw=1, ls="--", label="1-step forecast")
     for a in anomalies:
         ax1.axvspan(a["start"] - 0.5, a["end"] + 0.5, color="#111111", alpha=0.15)
     ax1.set_ylabel("value")
     ax1.legend()
 
     ax2.plot(score, color="#111111", lw=1)
-    ax2.axhline(a_th, color="black", lw=1, ls=":")
+    ax2.axhline(anomaly_threshold, color="black", lw=1, ls=":")
     ax2.set_xlabel("time")
     ax2.set_ylabel("anomaly score")
 

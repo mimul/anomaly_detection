@@ -41,12 +41,12 @@ def fold_balance_demo(X, y):
 
 
 def _hotelling_metrics(X_train_normal, X_test, y_test):
-    mu = X_train_normal.mean(axis=0)
-    sigma = np.cov(X_train_normal.T, ddof=0)
-    dev = X_test - mu
-    score = np.sum(dev @ np.linalg.inv(sigma) * dev, axis=1)
-    a_th = stats.chi2.ppf(1 - TARGET_FP_RATE, df=X_train_normal.shape[1])
-    pred = np.where(score > a_th, "anomaly", "normal")
+    mean_vec = X_train_normal.mean(axis=0)
+    cov_matrix = np.cov(X_train_normal.T, ddof=0)
+    centered = X_test - mean_vec
+    score = np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
+    anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=X_train_normal.shape[1])
+    pred = np.where(score > anomaly_threshold, "anomaly", "normal")
     f1 = f1_score(y_test, pred, pos_label="anomaly")
     auroc = roc_auc_score((y_test == "anomaly").astype(int), score)
     return f1, auroc

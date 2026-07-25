@@ -32,25 +32,25 @@ def run_gmm(X_train, df_inference):
     gmm.fit(X_train)
 
     train_scores = -gmm.score_samples(X_train)
-    a_th = np.quantile(train_scores, 1 - TARGET_FP_RATE)
-    print(f"[GMM] 두 정상 군집의 평균={gmm.means_.tolist()}, threshold={a_th:.3f}")
+    anomaly_threshold = np.quantile(train_scores, 1 - TARGET_FP_RATE)
+    print(f"[GMM] 두 정상 군집의 평균={gmm.means_.tolist()}, threshold={anomaly_threshold:.3f}")
 
     X_inf = df_inference[["x1", "x2"]].to_numpy()
     inf_scores = -gmm.score_samples(X_inf)
-    pred = np.where(inf_scores > a_th, "anomaly", "normal")
+    pred = np.where(inf_scores > anomaly_threshold, "anomaly", "normal")
     df_inference = df_inference.copy()
     df_inference["prediction"] = pred
     print(f"[GMM] 이상 판정 수={sum(pred == 'anomaly')}")
 
     x1 = np.linspace(df_inference["x1"].min() - 2, df_inference["x1"].max() + 2, 200)
     x2 = np.linspace(df_inference["x2"].min() - 1, df_inference["x2"].max() + 1, 200)
-    X1, X2 = np.meshgrid(x1, x2)
-    X_grid = np.c_[X1.ravel(), X2.ravel()]
+    mesh_x1, mesh_x2 = np.meshgrid(x1, x2)
+    X_grid = np.c_[mesh_x1.ravel(), mesh_x2.ravel()]
     grid_scores = -gmm.score_samples(X_grid)
-    pred_grid = np.where(grid_scores > a_th, 0, 1).reshape(X1.shape)
+    pred_grid = np.where(grid_scores > anomaly_threshold, 0, 1).reshape(mesh_x1.shape)
 
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.contourf(X1, X2, pred_grid, cmap=cm.gray, alpha=0.5)
+    ax.contourf(mesh_x1, mesh_x2, pred_grid, cmap=cm.gray, alpha=0.5)
     sns.scatterplot(data=df_inference, x="x1", y="x2", hue="label",
                      palette=["#999999", "#111111"], ax=ax)
 
@@ -75,17 +75,17 @@ def run_knn(X_train, df_inference):
 
         X_th_std = pipe.named_steps["scaler"].transform(X_for_threshold)
         distances, _ = pipe.named_steps["knn"].kneighbors(X_th_std)
-        a_th = np.quantile(distances[:, -1], 1 - TARGET_FP_RATE)
+        anomaly_threshold = np.quantile(distances[:, -1], 1 - TARGET_FP_RATE)
 
         x1 = np.linspace(df_inference["x1"].min() - 2, df_inference["x1"].max() + 2, 150)
         x2 = np.linspace(df_inference["x2"].min() - 1, df_inference["x2"].max() + 1, 150)
-        X1, X2 = np.meshgrid(x1, x2)
-        X_grid = np.c_[X1.ravel(), X2.ravel()]
+        mesh_x1, mesh_x2 = np.meshgrid(x1, x2)
+        X_grid = np.c_[mesh_x1.ravel(), mesh_x2.ravel()]
         X_grid_std = pipe.named_steps["scaler"].transform(X_grid)
         distances_grid, _ = pipe.named_steps["knn"].kneighbors(X_grid_std)
-        pred_grid = np.where(distances_grid[:, -1] > a_th, 0, 1).reshape(X1.shape)
+        pred_grid = np.where(distances_grid[:, -1] > anomaly_threshold, 0, 1).reshape(mesh_x1.shape)
 
-        axes[i].contourf(X1, X2, pred_grid, cmap=cm.gray, alpha=0.5)
+        axes[i].contourf(mesh_x1, mesh_x2, pred_grid, cmap=cm.gray, alpha=0.5)
         sns.scatterplot(data=df_inference, x="x1", y="x2", hue="label",
                          palette=["#999999", "#111111"], ax=axes[i], legend=(i == 0),
                          s=12)

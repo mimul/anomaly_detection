@@ -27,13 +27,13 @@ def plot_mle_fit(df_train):
     df_normal = df_train[df_train["label"] == "normal"].dropna(subset=["temp1"])
     x = df_normal["temp1"].to_numpy()
 
-    mu, sigma = stats.norm.fit(x)
-    print(f"[정규분포 MLE] mu={mu:.3f}, sigma={sigma:.3f}")
+    fitted_mean, fitted_std = stats.norm.fit(x)
+    print(f"[정규분포 MLE] fitted_mean={fitted_mean:.3f}, fitted_std={fitted_std:.3f}")
 
     fig, ax = plt.subplots(figsize=(5, 5))
     sns.histplot(x, stat="density", color="#bbbbbb", ax=ax, label="temp1 histogram")
-    xline = np.linspace(x.min() - 5, x.max() + 5, 200)
-    ax.plot(xline, stats.norm.pdf(xline, loc=mu, scale=sigma), color="#111111", lw=2,
+    x_line = np.linspace(x.min() - 5, x.max() + 5, 200)
+    ax.plot(x_line, stats.norm.pdf(x_line, loc=fitted_mean, scale=fitted_std), color="#111111", lw=2,
             label="fitted normal")
     ax.legend()
 
@@ -48,17 +48,17 @@ def plot_hotelling_threshold(df_train, df_inference):
     df_normal = df_train[df_train["label"] == "normal"].dropna(subset=["temp2"])
     x_train = df_normal["temp2"].to_numpy()
 
-    mu = np.mean(x_train)
-    sigma = np.std(x_train, ddof=0)
+    fitted_mean = np.mean(x_train)
+    fitted_std = np.std(x_train, ddof=0)
 
     TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐률
-    a_th = stats.chi2.ppf(1 - TARGET_FP_RATE, df=1)
-    print(f"[홀텔링 1변량] mu={mu:.3f}, sigma={sigma:.3f}, threshold={a_th:.3f}")
+    anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=1)
+    print(f"[홀텔링 1변량] fitted_mean={fitted_mean:.3f}, fitted_std={fitted_std:.3f}, threshold={anomaly_threshold:.3f}")
 
     df_inf = df_inference.dropna(subset=["temp2"]).copy()
     x_inf = df_inf["temp2"].to_numpy()
-    df_inf["anomaly_score"] = ((x_inf - mu) / sigma) ** 2
-    pred = np.where(df_inf["anomaly_score"] > a_th, "anomaly", "normal")
+    df_inf["anomaly_score"] = ((x_inf - fitted_mean) / fitted_std) ** 2
+    pred = np.where(df_inf["anomaly_score"] > anomaly_threshold, "anomaly", "normal")
     print(f"[홀텔링 1변량] 추론 결과: {pd_value_counts(pred)}")
 
     fig, ax = plt.subplots(figsize=(5, 5))
@@ -68,8 +68,8 @@ def plot_hotelling_threshold(df_train, df_inference):
                  stat="density", label="normal")
     sns.histplot(df_anom["anomaly_score"], binwidth=1, color="#111111", ax=ax,
                  stat="density", label="anomaly")
-    ax.axvline(a_th, color="black", lw=2)
-    ax.text(a_th, ax.get_ylim()[1] * 0.9, f"threshold={a_th:.2f}",
+    ax.axvline(anomaly_threshold, color="black", lw=2)
+    ax.text(anomaly_threshold, ax.get_ylim()[1] * 0.9, f"threshold={anomaly_threshold:.2f}",
             ha="center", va="bottom")
     ax.legend()
 
@@ -83,13 +83,13 @@ def plot_nonnormal_fit():
     """정규분포를 따르지 않는 데이터(감마분포)에 감마분포를 최우추정으로 적합한다"""
     x_train = stats.gamma.rvs(a=3, scale=2, size=1000, random_state=42)
     params = stats.gamma.fit(x_train, floc=0)
-    k, theta = params[0], params[2]
-    print(f"[감마분포 MLE] k={k:.3f}, theta={theta:.3f}")
+    gamma_shape, gamma_scale = params[0], params[2]
+    print(f"[감마분포 MLE] gamma_shape={gamma_shape:.3f}, gamma_scale={gamma_scale:.3f}")
 
     fig, ax = plt.subplots(figsize=(5, 5))
     sns.histplot(x_train, stat="density", color="#bbbbbb", ax=ax, label="sample histogram")
-    xline = np.linspace(0, x_train.max(), 200)
-    ax.plot(xline, stats.gamma.pdf(xline, a=k, scale=theta), color="#111111", lw=2,
+    x_line = np.linspace(0, x_train.max(), 200)
+    ax.plot(x_line, stats.gamma.pdf(x_line, a=gamma_shape, scale=gamma_scale), color="#111111", lw=2,
             label="fitted gamma")
     ax.legend()
 

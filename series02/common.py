@@ -8,8 +8,8 @@
 import numpy as np
 import pandas as pd
 
-MU_NORMAL = [400, 350, 300, 150, 100]
-SIGMA = [
+MEAN_NORMAL = [400, 350, 300, 150, 100]
+COV_MATRIX = [
     [25, 15, 10, 0, 0],
     [15, 25, 12, 0, 0],
     [10, 12, 16, 0, 0],
@@ -24,11 +24,11 @@ def generate_line_dataset(seed: int = 42):
     rng = np.random.default_rng(seed=seed)
 
     n_normal = 1500
-    normal_dataset = rng.multivariate_normal(MU_NORMAL, SIGMA, n_normal)
+    normal_dataset = rng.multivariate_normal(MEAN_NORMAL, COV_MATRIX, n_normal)
 
-    mu_anomaly = [410, 370, 310, 150, 100]
+    mean_anomaly = [410, 370, 310, 150, 100]
     n_anomaly = 30
-    anomaly_dataset = rng.multivariate_normal(mu_anomaly, SIGMA, n_anomaly)
+    anomaly_dataset = rng.multivariate_normal(mean_anomaly, COV_MATRIX, n_anomaly)
 
     df_normal = pd.DataFrame(normal_dataset, columns=COLUMNS)
     df_anomaly = pd.DataFrame(anomaly_dataset, columns=COLUMNS)
@@ -54,15 +54,15 @@ def generate_bimodal_dataset(seed: int = 42):
     """두 개의 정상 군집(봉우리)을 가진 2차원 데이터. GMM·kNN 예제에서 사용한다."""
     rng = np.random.default_rng(seed=seed)
 
-    mu1, sigma1 = [0, 0], [[1, 0], [0, 1]]
-    mu2, sigma2 = [4, 0], [[2, 1], [1, 1]]
-    X_train_1 = rng.multivariate_normal(mu1, sigma1, 600)
-    X_train_2 = rng.multivariate_normal(mu2, sigma2, 600)
+    cluster1_mean, cluster1_cov = [0, 0], [[1, 0], [0, 1]]
+    cluster2_mean, cluster2_cov = [4, 0], [[2, 1], [1, 1]]
+    X_train_1 = rng.multivariate_normal(cluster1_mean, cluster1_cov, 600)
+    X_train_2 = rng.multivariate_normal(cluster2_mean, cluster2_cov, 600)
     X_train = np.concatenate([X_train_1, X_train_2])
 
     rng_inf = np.random.default_rng(seed=seed)
-    X_inf_norm_1 = rng_inf.multivariate_normal(mu1, sigma1, 100)
-    X_inf_norm_2 = rng_inf.multivariate_normal(mu2, sigma2, 100)
+    X_inf_norm_1 = rng_inf.multivariate_normal(cluster1_mean, cluster1_cov, 100)
+    X_inf_norm_2 = rng_inf.multivariate_normal(cluster2_mean, cluster2_cov, 100)
     X_inf_norm = np.concatenate([X_inf_norm_1, X_inf_norm_2])
     X_inf_anom = rng_inf.multivariate_normal([3, 2], [[1, 0], [0, 1]], 20)
 

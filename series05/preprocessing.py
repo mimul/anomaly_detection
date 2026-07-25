@@ -49,29 +49,29 @@ def _hotelling_f1_cv(X, y, cv):
     for train_idx, test_idx in cv.split(X, y):
         X_train, X_test, y_test = X[train_idx], X[test_idx], y[test_idx]
         n_features = X_train.shape[1]
-        mu = np.mean(X_train, axis=0)
-        sigma = np.atleast_2d(np.cov(X_train.T, ddof=0))
-        dev = X_test - mu
-        score = np.sum(dev @ np.linalg.inv(sigma) * dev, axis=1)
-        a_th = stats.chi2.ppf(1 - TARGET_FP_RATE, df=n_features)
-        pred = np.where(score > a_th, "anomaly", "normal")
+        mean_vec = np.mean(X_train, axis=0)
+        cov_matrix = np.atleast_2d(np.cov(X_train.T, ddof=0))
+        centered = X_test - mean_vec
+        score = np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
+        anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=n_features)
+        pred = np.where(score > anomaly_threshold, "anomaly", "normal")
         f1s.append(f1_score(y_test, pred, pos_label="anomaly"))
     return float(np.mean(f1s))
 
 
 def _hotelling_aic(X_normal):
     """정상 데이터에만 적합한 M차원 정규분포 홀텔링 모델의 AIC를 계산한다"""
-    n, n_features = X_normal.shape
-    mu = np.mean(X_normal, axis=0)
-    sigma = np.atleast_2d(np.cov(X_normal.T, ddof=0))
-    dev = X_normal - mu
-    score = np.sum(dev @ np.linalg.inv(sigma) * dev, axis=1)
+    n_samples, n_features = X_normal.shape
+    mean_vec = np.mean(X_normal, axis=0)
+    cov_matrix = np.atleast_2d(np.cov(X_normal.T, ddof=0))
+    centered = X_normal - mean_vec
+    score = np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
     log_likelihood = (
-        -n * (n_features / 2 * np.log(2 * np.pi) + 0.5 * np.log(np.linalg.det(sigma)))
+        -n_samples * (n_features / 2 * np.log(2 * np.pi) + 0.5 * np.log(np.linalg.det(cov_matrix)))
         - 0.5 * np.sum(score)
     )
-    k = n_features + n_features * (n_features + 1) / 2
-    return 2 * k - 2 * log_likelihood
+    n_params = n_features + n_features * (n_features + 1) / 2
+    return 2 * n_params - 2 * log_likelihood
 
 
 def stepwise_forward_demo(df_dropna, n_select=2):
