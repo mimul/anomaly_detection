@@ -22,6 +22,12 @@ OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
+def count_labels(arr):
+    """value_counts처럼 배열에 담긴 값별 등장 횟수를 딕셔너리로 센다"""
+    values, counts = np.unique(arr, return_counts=True)
+    return dict(zip(values, counts))
+
+
 def plot_mle_fit(df_train):
     """정상 데이터(temp1)에 정규분포를 최우추정으로 적합한다"""
     df_normal = df_train[df_train["label"] == "normal"].dropna(subset=["temp1"])
@@ -59,7 +65,7 @@ def plot_hotelling_threshold(df_train, df_inference):
     x_inf = df_inf["temp2"].to_numpy()
     df_inf["anomaly_score"] = ((x_inf - fitted_mean) / fitted_std) ** 2
     pred = np.where(df_inf["anomaly_score"] > anomaly_threshold, "anomaly", "normal")
-    print(f"[홀텔링 1변량] 추론 결과: {pd_value_counts(pred)}")
+    print(f"[홀텔링 1변량] 추론 결과: {count_labels(pred)}")
 
     fig, ax = plt.subplots(figsize=(5, 5))
     df_norm = df_inf[df_inf["label"] == "normal"]
@@ -97,11 +103,6 @@ def plot_nonnormal_fit():
     plt.savefig(path, dpi=100)
     plt.close()
     print(f"저장됨: {path}")
-
-
-def pd_value_counts(arr):
-    values, counts = np.unique(arr, return_counts=True)
-    return dict(zip(values, counts))
 
 
 if __name__ == "__main__":

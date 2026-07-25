@@ -25,7 +25,7 @@ WINDOW = 20
 
 
 def extract_window_features(series, window_len):
-    """길이 w인 슬라이딩 윈도우마다 평균·표준편차·범위·기울기를 추출한다"""
+    """길이 window_len인 슬라이딩 윈도우마다 평균·표준편차·범위·기울기를 추출한다"""
     n_points = len(series)
     centers, feats = [], []
     for i in range(n_points - window_len + 1):

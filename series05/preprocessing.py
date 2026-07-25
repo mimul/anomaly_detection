@@ -18,9 +18,7 @@ from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
-from common import COLUMNS, generate_dataset
-
-TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐률
+from common import COLUMNS, TARGET_FP_RATE, fit_hotelling, generate_dataset, hotelling_score
 
 
 def listwise_deletion_demo():
@@ -49,10 +47,8 @@ def _hotelling_f1_cv(X, y, cv):
     for train_idx, test_idx in cv.split(X, y):
         X_train, X_test, y_test = X[train_idx], X[test_idx], y[test_idx]
         n_features = X_train.shape[1]
-        mean_vec = np.mean(X_train, axis=0)
-        cov_matrix = np.atleast_2d(np.cov(X_train.T, ddof=0))
-        centered = X_test - mean_vec
-        score = np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
+        mean_vec, cov_matrix = fit_hotelling(X_train)
+        score = hotelling_score(X_test, mean_vec, cov_matrix)
         anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=n_features)
         pred = np.where(score > anomaly_threshold, "anomaly", "normal")
         f1s.append(f1_score(y_test, pred, pos_label="anomaly"))
@@ -62,10 +58,8 @@ def _hotelling_f1_cv(X, y, cv):
 def _hotelling_aic(X_normal):
     """정상 데이터에만 적합한 M차원 정규분포 홀텔링 모델의 AIC를 계산한다"""
     n_samples, n_features = X_normal.shape
-    mean_vec = np.mean(X_normal, axis=0)
-    cov_matrix = np.atleast_2d(np.cov(X_normal.T, ddof=0))
-    centered = X_normal - mean_vec
-    score = np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
+    mean_vec, cov_matrix = fit_hotelling(X_normal)
+    score = hotelling_score(X_normal, mean_vec, cov_matrix)
     log_likelihood = (
         -n_samples * (n_features / 2 * np.log(2 * np.pi) + 0.5 * np.log(np.linalg.det(cov_matrix)))
         - 0.5 * np.sum(score)

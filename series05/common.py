@@ -9,6 +9,8 @@
 import importlib.util
 import os
 
+import numpy as np
+
 _path = os.path.join(os.path.dirname(__file__), "..", "series01", "common.py")
 _spec = importlib.util.spec_from_file_location("series01_common", _path)
 _series01_common = importlib.util.module_from_spec(_spec)
@@ -16,3 +18,18 @@ _spec.loader.exec_module(_series01_common)
 
 COLUMNS = _series01_common.COLUMNS
 generate_dataset = _series01_common.generate_dataset
+
+TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐률
+
+
+def fit_hotelling(X_normal):
+    """정상 데이터에 다변량 정규분포(홀텔링 모델)를 적합해 평균벡터와 분산공분산행렬을 구한다"""
+    mean_vec = np.mean(X_normal, axis=0)
+    cov_matrix = np.atleast_2d(np.cov(X_normal.T, ddof=0))
+    return mean_vec, cov_matrix
+
+
+def hotelling_score(X, mean_vec, cov_matrix):
+    """관측값과 홀텔링 모델 사이의 마할라노비스 거리 제곱(이상 점수)을 구한다"""
+    centered = X - mean_vec
+    return np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)

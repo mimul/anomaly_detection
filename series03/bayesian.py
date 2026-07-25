@@ -59,7 +59,7 @@ def metropolis_hastings(log_posterior, init, step, n_iter=8000, burn=2000, seed=
 
 def bayesian_linear_regression():
     """켤레사전분포를 이용해 MCMC 없이 닫힌 형태로 구하는 베이지안 선형회귀"""
-    df_train, df_inference, cat_names, enc = load_usedcar_data()
+    df_train, df_inference, cat_names, encoder = load_usedcar_data()
     feature_cols = ["year", "odometer"] + cat_names
     X_train = df_train[feature_cols].to_numpy()
     y_train = df_train["price"].to_numpy()
@@ -73,23 +73,23 @@ def bayesian_linear_regression():
 
     mean_train, std_train = model.predict(X_train, return_std=True)
     score_train = ((y_train - mean_train) / std_train) ** 2
-    a_th = np.quantile(score_train, 1 - TARGET_FP_RATE)
-    print(f"[베이지안 선형회귀] a_th={a_th:.4f}")
+    anomaly_threshold = np.quantile(score_train, 1 - TARGET_FP_RATE)
+    print(f"[베이지안 선형회귀] anomaly_threshold={anomaly_threshold:.4f}")
 
     X_inf = df_inference[feature_cols].to_numpy()
     y_inf = df_inference["price"].to_numpy()
     mean_inf, std_inf = model.predict(X_inf, return_std=True)
     score_inf = ((y_inf - mean_inf) / std_inf) ** 2
-    pred = np.where(score_inf > a_th, "anomaly", "normal")
+    pred = np.where(score_inf > anomaly_threshold, "anomaly", "normal")
     print(f"[베이지안 선형회귀] 추론 데이터 이상 판정 수={sum(pred == 'anomaly')} / {len(pred)}")
 
     def predict_fn(X_features, y_values):
         mean, std = model.predict(X_features, return_std=True)
         score = ((y_values - mean) / std) ** 2
-        return np.where(score > a_th, 0, 1)
+        return np.where(score > anomaly_threshold, 0, 1)
 
-    model_cols = list(enc.categories_[0])
-    dropped_name = enc.categories_[0][0]
+    model_cols = list(encoder.categories_[0])
+    dropped_name = encoder.categories_[0][0]
     _plot_multivariate_grid(model_cols, cat_names, dropped_name, predict_fn,
                              df_inference, "bayesian-linear-boundary.png")
 

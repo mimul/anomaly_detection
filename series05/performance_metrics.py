@@ -25,24 +25,20 @@ from sklearn.metrics import (
     roc_curve,
 )
 
-from common import generate_dataset
+from common import TARGET_FP_RATE, fit_hotelling, generate_dataset, hotelling_score
 
 OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐률
 VARS = ["temp2", "temp1"]
 
 
 def _hotelling_fit(df_train_normal):
-    mean_vec = df_train_normal[VARS].mean().to_numpy()
-    cov_matrix = np.cov(df_train_normal[VARS].to_numpy().T, ddof=0)
-    return mean_vec, cov_matrix
+    return fit_hotelling(df_train_normal[VARS].to_numpy())
 
 
 def _anomaly_score(df, mean_vec, cov_matrix):
-    centered = df[VARS].to_numpy() - mean_vec
-    return np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
+    return hotelling_score(df[VARS].to_numpy(), mean_vec, cov_matrix)
 
 
 def label_based_metrics(mean_vec, cov_matrix, df_inf):

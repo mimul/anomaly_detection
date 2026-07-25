@@ -20,7 +20,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def matrix_profile(series, window):
-    """길이 m인 모든 부분열끼리 z-정규화 유클리드 거리를 계산해 Matrix Profile을 구한다"""
+    """길이 window인 모든 부분열끼리 z-정규화 유클리드 거리를 계산해 Matrix Profile을 구한다"""
     n_points = len(series)
     n_sub = n_points - window + 1
     windows = np.array([series[i:i + window] for i in range(n_sub)])

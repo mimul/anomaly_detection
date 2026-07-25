@@ -14,6 +14,7 @@ import os
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy import stats
 
@@ -82,7 +83,6 @@ def plot_mahalanobis_taguchi_sn(df_inf, mean_vec, cov_matrix, anomaly_threshold)
             sn_ratio = 10 * np.log10((row[feature] - mean_vec[j]) ** 2 / variances[j])
             sn_records.append({"index": _, "feature": feature, "sn_ratio": sn_ratio})
 
-    import pandas as pd
     df_sn = pd.DataFrame(sn_records)
     if df_sn.empty:
         print("[마할라노비스-다구치법] 이상 판정된 데이터가 없어 SN비를 계산하지 않았다")

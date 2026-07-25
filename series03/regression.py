@@ -108,7 +108,7 @@ def _plot_multivariate_grid(model_cols, model_cat_names, dropped_name,
 
 def multivariate_regression_anomaly_detection():
     """연식·주행거리·차종을 함께 쓰는 다변량 선형회귀 이상탐지"""
-    df_train, df_inference, cat_names, enc = load_usedcar_data()
+    df_train, df_inference, cat_names, encoder = load_usedcar_data()
     feature_cols = ["year", "odometer"] + cat_names
     X_train = df_train[feature_cols].to_numpy()
     y_train = df_train["price"].to_numpy()
@@ -133,15 +133,15 @@ def multivariate_regression_anomaly_detection():
         score = (y_values - X_features @ coef - intercept) ** 2 / residual_var
         return np.where(score > anomaly_threshold, 0, 1)
 
-    model_cols = list(enc.categories_[0])
-    dropped_name = enc.categories_[0][0]
+    model_cols = list(encoder.categories_[0])
+    dropped_name = encoder.categories_[0][0]
     _plot_multivariate_grid(model_cols, cat_names, dropped_name, predict_fn,
                              df_inference, "multivariate-regression-boundary.png")
 
 
 def ridge_regression_anomaly_detection():
     """다중공선성에 대비한 L2 정규화 회귀(리지 회귀) 이상탐지"""
-    df_train, df_inference, cat_names, enc = load_usedcar_data()
+    df_train, df_inference, cat_names, encoder = load_usedcar_data()
     feature_cols = ["year", "odometer"] + cat_names
     X_train = df_train[feature_cols].to_numpy()
     y_train = df_train["price"].to_numpy()
@@ -186,8 +186,8 @@ def ridge_regression_anomaly_detection():
         score = log_term + sq_term
         return np.where(score > anomaly_threshold, 0, 1)
 
-    model_cols = list(enc.categories_[0])
-    dropped_name = enc.categories_[0][0]
+    model_cols = list(encoder.categories_[0])
+    dropped_name = encoder.categories_[0][0]
     _plot_multivariate_grid(model_cols, cat_names, dropped_name, predict_fn,
                              df_inference, "ridge-regression-boundary.png")
 

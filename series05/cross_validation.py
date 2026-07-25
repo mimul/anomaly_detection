@@ -20,12 +20,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.model_selection import KFold, StratifiedKFold
 
-from common import generate_dataset
+from common import TARGET_FP_RATE, fit_hotelling, generate_dataset, hotelling_score
 
 OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐률
 VARS = ["temp2", "temp1"]
 
 
@@ -41,10 +40,8 @@ def fold_balance_demo(X, y):
 
 
 def _hotelling_metrics(X_train_normal, X_test, y_test):
-    mean_vec = X_train_normal.mean(axis=0)
-    cov_matrix = np.cov(X_train_normal.T, ddof=0)
-    centered = X_test - mean_vec
-    score = np.sum(centered @ np.linalg.inv(cov_matrix) * centered, axis=1)
+    mean_vec, cov_matrix = fit_hotelling(X_train_normal)
+    score = hotelling_score(X_test, mean_vec, cov_matrix)
     anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=X_train_normal.shape[1])
     pred = np.where(score > anomaly_threshold, "anomaly", "normal")
     f1 = f1_score(y_test, pred, pos_label="anomaly")
