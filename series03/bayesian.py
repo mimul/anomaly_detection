@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import statsmodels.api as sm
 from scipy import stats
 from sklearn.linear_model import BayesianRidge
 
@@ -266,18 +267,20 @@ def bayesian_poisson_regression():
 
 
 def dealer_random_effect_illustration():
-    """다변량 회귀의 잔차를 판매자별로 나눠, 설명변수로 못 잡아내는 개체차를 확인한다"""
+    """다변량 선형회귀의 잔차를 판매자별로 나눠, 설명변수로 못 잡아내는 그룹차를 확인한다"""
     df_train, _, cat_names, _ = load_usedcar_data()
     feature_cols = ["year", "odometer"] + cat_names
     X_train = df_train[feature_cols].to_numpy()
     y_train = df_train["price"].to_numpy()
 
-    model = BayesianRidge()
-    model.fit(X_train, y_train)
-    residual = y_train - model.predict(X_train)
+    # 블로그 글의 서술과 같게 다변량 선형회귀(최소제곱법)의 잔차를 쓴다
+    res = sm.OLS(y_train, sm.add_constant(X_train)).fit()
+    residual = res.resid
     df_resid = pd.DataFrame({"dealer": df_train["dealer"].to_numpy(), "residual": residual})
-    dealer_order = (df_resid.groupby("dealer")["residual"].mean()
-                     .sort_values().index.tolist())
+    dealer_means = df_resid.groupby("dealer")["residual"].mean().sort_values()
+    dealer_order = dealer_means.index.tolist()
+    print(f"[판매자 그룹차] 잔차 평균 최소={dealer_means.index[0]} ({dealer_means.iloc[0]:.1f}), "
+          f"최대={dealer_means.index[-1]} ({dealer_means.iloc[-1]:.1f})")
 
     fig, ax = plt.subplots(figsize=(6, 3))
     sns.boxplot(data=df_resid, x="dealer", y="residual", order=dealer_order,

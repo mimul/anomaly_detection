@@ -39,6 +39,10 @@ def linear_regression_anomaly_detection():
     train_score = (y_train - slope * x_train - intercept) ** 2 / residual_var
     anomaly_threshold = np.quantile(train_score, 1 - TARGET_FP_RATE)
     print(f"[선형회귀] slope={slope:.3f}, intercept={intercept:.3f}, residual_var={residual_var:.2f}, anomaly_threshold={anomaly_threshold:.4f}")
+    # 임계값이 카이제곱 기준(약 9)보다 낮은 이유: 학습 잔차의 꼬리가 정규분포보다 얇다
+    standardized = res.resid / np.sqrt(residual_var)
+    print(f"[선형회귀] 학습 잔차 왜도={stats.skew(res.resid):.3f}, 초과첨도={stats.kurtosis(res.resid):.3f}, "
+          f"최대 |표준화 잔차|={np.abs(standardized).max():.2f}")
 
     x_inf, y_inf = df_inference["year"].to_numpy(), df_inference["price"].to_numpy()
     score_inf = (y_inf - slope * x_inf - intercept) ** 2 / residual_var
@@ -149,16 +153,21 @@ def ridge_regression_anomaly_detection():
     X_train_intercept = sm.add_constant(X_train)
     mod = sm.OLS(y_train, X_train_intercept)
     LAMBDA = 2.0
-    alpha = LAMBDA / 2 / len(y_train)
+    # statsmodels의 목적함수는 RSS/(2N) + alpha*||w||^2/2 이므로, 블로그 글의 식
+    # RSS + λ||w||^2 과 맞추려면 alpha = λ/N 이다. 절편은 정규화 대상에서 제외한다.
+    n_features = X_train_intercept.shape[1]
+    alpha = np.full(n_features, LAMBDA / len(y_train))
+    alpha[0] = 0.0
     res = mod.fit_regularized(alpha=alpha, L1_wt=0)
     ridge_coef = res.params
 
     design_matrix = np.concatenate([np.ones((len(y_train), 1)), X_train], axis=1)
     rss = np.sum((y_train - design_matrix @ ridge_coef) ** 2)
-    residual_var = (rss + LAMBDA * np.sum(ridge_coef * ridge_coef)) / len(y_train)
+    residual_var = (rss + LAMBDA * np.sum(ridge_coef[1:] ** 2)) / len(y_train)
 
-    n_features = X_train_intercept.shape[1]
-    gram_matrix = design_matrix.T @ design_matrix + LAMBDA * np.eye(n_features)
+    penalty_matrix = LAMBDA * np.eye(n_features)
+    penalty_matrix[0, 0] = 0.0  # 절편은 정규화하지 않는다
+    gram_matrix = design_matrix.T @ design_matrix + penalty_matrix
     gram_matrix_inv = np.linalg.inv(gram_matrix)
     leverage_train = 1 + np.sum(design_matrix @ gram_matrix_inv * design_matrix, axis=1)
 
@@ -205,6 +214,16 @@ def gamma_regression_anomaly_detection():
     train_score = -np.log(train_dist.pdf(y_train))
     anomaly_threshold = np.quantile(train_score, 1 - TARGET_FP_RATE)
     print(f"[감마회귀] anomaly_threshold={anomaly_threshold:.4f}")
+
+    # 연식별 정상 범위의 폭. 감마분포는 분산이 평균의 제곱에 비례하므로 평균이 낮아질수록 폭이 줄고,
+    # 평균 위쪽 폭이 아래쪽 폭보다 조금 넓다(오른쪽으로 치우친 분포).
+    price_grid = np.linspace(500, 6500, 20001)
+    for year in [2, 10]:
+        exog = sm.add_constant(np.full_like(price_grid, year, dtype=float), has_constant="add")
+        inside = price_grid[-np.log(res.get_distribution(exog=exog).pdf(price_grid)) <= anomaly_threshold]
+        mean_price = float(np.exp(res.params[0] + res.params[1] * year))
+        print(f"[감마회귀] year={year}: 평균={mean_price:.0f}, 정상 범위=[{inside.min():.0f}, {inside.max():.0f}], "
+              f"아래 폭={mean_price - inside.min():.0f}, 위 폭={inside.max() - mean_price:.0f}")
 
     x_inf, y_inf = df_inference["year"].to_numpy(), df_inference["price"].to_numpy()
     X_inf_intercept = sm.add_constant(x_inf)
