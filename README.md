@@ -19,7 +19,9 @@ series02/
   multivariate.py   다변량 홀텔링 이론, 마할라노비스-다구치법
   nonparametric.py  GMM, kNN
   datasets/
-    earthquake_kma.csv   국내 지진 실측 데이터 (아래 "데이터 출처" 참고)
+    earthquake_kma.csv                          국내 지진 실측 데이터 (아래 "데이터 출처" 참고)
+    player_stats_2022.csv, player_stats_2023.csv  NBA 선수별 시즌 기록 (series03에서도 사용, 아래 "데이터 출처" 참고)
+    LICENSE-player_stats                        위 NBA CSV의 재배포 라이선스 고지
 
 series03/
   common.py     중고차 데이터셋 로딩과 원-핫 인코딩
@@ -71,14 +73,14 @@ python series05/performance_metrics.py
 python series05/cross_validation.py
 ```
 
-series01, series02, series04의 대부분 데이터는 고정된 시드로 매번 실행 시 새로 생성되므로 별도의 데이터 생성 스크립트를 먼저 실행할 필요가 없습니다. series05는 1편(series01)의 데이터셋을 그대로 재사용합니다. `series02/count_data.py`의 지진 데이터와 `series03/`의 데이터셋은 모두 `datasets/`에 미리 내려받아둔 파일을 사용합니다.
+series01, series02, series04의 대부분 데이터는 고정된 시드로 매번 실행 시 새로 생성되므로 별도의 데이터 생성 스크립트를 먼저 실행할 필요가 없습니다. series05는 1편(series01)의 데이터셋을 그대로 재사용합니다. `series02/count_data.py`의 지진·NBA 데이터와 `series03/`의 데이터셋은 모두 `datasets/`에 미리 내려받아둔 파일을 사용하므로, 실행 시 네트워크 접근이 필요 없습니다.
 
 모든 스크립트는 저장소 루트 디렉터리에서 실행하는 것을 기준으로 상대 경로(`outputs/`)를 사용합니다. 생성된 이미지는 `outputs/` 아래에 블로그 글에서 쓰는 파일명 그대로 저장됩니다.
 
 ## 데이터 출처
 
 - `series02/datasets/earthquake_kma.csv`: 기상청 지진 조회 서비스에서 내려받은 국내 지진 관측 데이터 (2020.1~2026.7, 규모 2.0 이상).
-- `series02/count_data.py`, `series03/bayesian.py`의 NBA 3점슛 성공률 데이터(`player_stats_2022.csv`, `player_stats_2023.csv`)의 출처는 [NBA.com/stats](https://www.nba.com/stats/players/traditional)이다.
+- `series02/datasets/player_stats_2022.csv`, `player_stats_2023.csv`: `series02/count_data.py`와 `series03/bayesian.py`가 쓰는 NBA 선수별 시즌 기록. 원 출처는 [NBA.com/stats](https://www.nba.com/stats/players/traditional)이고, CSV 파일은 BSD-3-Clause로 공개된 [ghmagazine/python_anomaly_detection_book](https://github.com/ghmagazine/python_anomaly_detection_book) 저장소의 사본이다. 라이선스 전문은 `series02/datasets/LICENSE-player_stats`에 있다.
 - `series03/datasets/usedcar_train.csv`, `usedcar_inference.csv`: 연식·주행거리·차종·판매자로 가격을 생성한 합성 데이터. price는 만원 단위, odometer는 만km 단위다.
 - `series03/datasets/earthquakes_volcanoes_train.csv`, `_test.csv`: 미국 지질조사국(USGS)의 지진 데이터와 스미스소니언 박물관의 화산 데이터를 국가·연도 단위로 결합한 실측 데이터.
 

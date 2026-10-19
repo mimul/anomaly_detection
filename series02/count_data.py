@@ -4,8 +4,9 @@
 블로그 글에 실린 세 이미지(이항분포 기반 경계, 포아송분포 기반 경계,
 과분산을 반영한 음이항분포 기반 경계)를 생성한다.
 
-이항분포 예제는 원서와 같은 NBA 3점슛 성공률 데이터
-(ghmagazine/python_anomaly_detection_book 저장소의 공개 데이터)를 사용한다.
+이항분포 예제는 NBA 선수별 3점슛 성공률 데이터(series02/datasets/player_stats_2022.csv,
+player_stats_2023.csv)를 사용한다. 원 출처는 NBA.com/stats이고, CSV 파일은
+BSD-3-Clause로 공개된 저장소의 사본이다(같은 디렉터리의 LICENSE-player_stats 참고).
 
 포아송분포·음이항분포 예제는 기상청이 제공하는 국내 지진 실측 데이터
 (series02/datasets/earthquake_kma.csv, 2020.1~2026.7, 기상청 날씨누리
@@ -30,10 +31,7 @@ from scipy.stats import nbinom
 OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-BASE_URL = (
-    "https://raw.githubusercontent.com/ghmagazine/python_anomaly_detection_book"
-    "/refs/heads/main/notebooks/datasets"
-)
+NBA_DATA_DIR = "series02/datasets"  # NBA 3점슛 데이터 CSV 위치
 TARGET_FP_RATE = 0.0027  # 정규분포 3시그마에 해당하는 목표 오탐률
 
 # 시도별 면적(km²). 위키백과 "대한민국의 행정 구역" 문서 기준
@@ -68,14 +66,14 @@ def _plot_boundary_line(df_inf, x_col, y_col, x_line, lower, upper, filename,
 
 def binomial_anomaly_detection():
     """3점슛 성공률(성공수/시도수)을 이항분포로 모델링해 이상 선수를 찾는다"""
-    df_train = pd.read_csv(f"{BASE_URL}/player_stats_2022.csv")
+    df_train = pd.read_csv(f"{NBA_DATA_DIR}/player_stats_2022.csv")
     df_train = df_train[df_train["FG3A"] > 0]
     x_train, n_train = df_train["FG3M"].to_numpy(), df_train["FG3A"].to_numpy()
 
     success_rate = np.sum(x_train) / np.sum(n_train)  # 발생률(성공 확률) 파라미터
     print(f"[이항분포] 2022시즌 평균 3점슛 성공률={success_rate:.4f}")
 
-    df_inf = pd.read_csv(f"{BASE_URL}/player_stats_2023.csv")
+    df_inf = pd.read_csv(f"{NBA_DATA_DIR}/player_stats_2023.csv")
     df_inf = df_inf[df_inf["FG3A"] > 0].copy()
     n_inf, x_inf = df_inf["FG3A"].to_numpy(), df_inf["FG3M"].to_numpy()
 
@@ -83,7 +81,8 @@ def binomial_anomaly_detection():
     th_upper = stats.binom.ppf(1 - TARGET_FP_RATE / 2, n=n_inf, p=success_rate)
     df_inf["3P%"] = x_inf / n_inf
     df_inf["prediction"] = np.where((x_inf < th_lower) | (x_inf > th_upper), "anomaly", "normal")
-    print(f"[이항분포] 2023시즌 이상 판정 선수 수={sum(df_inf['prediction'] == 'anomaly')}")
+    print(f"[이항분포] 2023시즌 이상 판정 선수 수={sum(df_inf['prediction'] == 'anomaly')} "
+          f"(상한 초과 {int(np.sum(x_inf > th_upper))}명, 하한 미만 {int(np.sum(x_inf < th_lower))}명)")
 
     n_line = np.arange(1, 751)
     lower = stats.binom.ppf(TARGET_FP_RATE / 2, n=n_line, p=success_rate) / n_line
@@ -132,8 +131,10 @@ def poisson_anomaly_detection():
     df_inf = pd.DataFrame({"region": regions, "area": area, "count": x_test})
     df_inf["density"] = df_inf["count"] / df_inf["area"]
     df_inf["prediction"] = np.where((x_test < th_lower) | (x_test > th_upper), "anomaly", "normal")
-    print(f"[포아송분포] 2024~2026년 이상 판정 지역:\n"
-          f"{df_inf[df_inf['prediction']=='anomaly'][['region', 'count']]}")
+    # 전국 평균 발생률로 기대되는 밀도 대비 몇 배인지 함께 보여준다
+    df_inf["density_ratio"] = df_inf["density"] / (rate_per_exposure * TEST_YEARS)
+    print(f"[포아송분포] 2024~2026년 이상 판정 지역(density_ratio=기대 밀도 대비 배수):\n"
+          f"{df_inf[df_inf['prediction']=='anomaly'][['region', 'count', 'density_ratio']].round(2)}")
 
     area_line = np.linspace(400, 19000, 300)
     lower = stats.poisson.ppf(TARGET_FP_RATE / 2, mu=rate_per_exposure * area_line * TEST_YEARS) / area_line
