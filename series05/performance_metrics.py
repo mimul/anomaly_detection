@@ -70,7 +70,7 @@ def label_based_metrics(mean_vec, cov_matrix, df_inf):
     ax1.set_xlim(0, 1.05)
     ax1.set_ylim(0, 1.05)
 
-    ax2.plot(fpr, tpr, color="#111111", label=f"AU-ROC={auroc:.3f}")
+    ax2.plot(fpr, tpr, color="#111111", label=f"AU-ROC={auroc:.4f}")  # 본문 수치(0.9998)와 같은 자릿수
     ax2.plot([0, 1], [0, 1], color="#999999", linestyle="--")
     ax2.set_xlabel("false positive rate")
     ax2.set_ylabel("true positive rate")
