@@ -52,6 +52,22 @@ def tree_based_anomaly_detection():
                       & (flagged_centers <= a["end"] + WINDOW // 2))
         print(f"  - {a['type']} 이상(구간 {a['start']}~{a['end']}) 탐지 여부: {hit}")
 
+    # contamination이 정한 19개의 내역과, 이상 유형별 윈도우 점수를 컷오프와 비교한다
+    # (블로그 글: 맥락적 이상 윈도우는 특징 하나하나로는 극단적이지 않아 컷오프 위에 남는다)
+    scores = clf.score_samples(feats)
+    cutoff = np.sort(scores)[len(flagged_centers) - 1]
+    print(f"[트리 기반] 이상 판정 컷오프 점수={cutoff:.3f} (낮을수록 이상)")
+    in_span = np.zeros(len(centers), dtype=bool)
+    for a in anomalies:
+        mask = (centers >= a["start"] - WINDOW // 2) & (centers <= a["end"] + WINDOW // 2)
+        in_span |= mask
+        worst = np.argmin(np.where(mask, scores, np.inf))
+        print(f"  - {a['type']} 이상 윈도우 수={int(np.sum(pred[mask] == -1))}, 최저 점수={scores[worst]:.3f}, "
+              f"그 윈도우의 특징(평균, 표준편차, 범위, 기울기)={np.round(feats[worst], 2)}")
+    normal = ~in_span
+    print(f"  - 정상 구간 오탐 윈도우 수={int(np.sum(pred[normal] == -1))}, 정상 윈도우 최저 점수={scores[normal].min():.3f}, "
+          f"정상 윈도우 표준편차 최대={feats[normal][:, 1].max():.2f}, 범위 최대={feats[normal][:, 2].max():.2f}")
+
     fig, ax = plt.subplots(figsize=(7, 3.5))
     ax.plot(series, color="#999999", lw=1)
     for a in anomalies:

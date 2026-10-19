@@ -66,6 +66,14 @@ def forecasting_based_anomaly_detection():
         hit = np.any(pred[a["start"]:a["end"] + 1] == "anomaly")
         print(f"  - {a['type']} 이상(구간 {a['start']}~{a['end']}) 탐지 여부: {hit}")
 
+    # 학습 잔차로 정한 임계값이 추론 구간에서 목표 오탐률을 지키는지 확인한다
+    # (블로그 글: 학습 잔차 표준편차가 추론 오차를 과소추정해 오탐률이 목표를 넘는다)
+    normal = label == "normal"
+    n_fp = int(np.sum((pred == "anomaly") & normal))
+    rms_normal = np.sqrt(np.mean(score[normal]))
+    print(f"[예측 오차 기반] 정상 시점 {int(normal.sum())}개 중 오탐={n_fp}건 (오탐률 {n_fp / normal.sum():.1%}, 목표 {TARGET_FP_RATE:.2%}), "
+          f"정상 구간 정규화 오차의 제곱평균제곱근={rms_normal:.2f} (1보다 크면 학습 잔차가 추론 오차를 과소추정)")
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5), sharex=True)
     ax1.plot(series, color="#999999", lw=1, label="observed")
     ax1.plot(forecast, color="#111111", lw=1, ls="--", label="1-step forecast")
