@@ -2,7 +2,10 @@
 2편 - GMM과 kNN을 이용한 비모수적 이상탐지
 
 블로그 글에 실린 두 이미지(GMM의 확률밀도와 결정 경계, k 값에 따른 kNN 결정 경계
-비교)를 생성한다. 정상 군집이 두 개인 2차원 합성 데이터를 사용한다.
+비교)를 생성한다. 정상 군집이 두 개인 2차원 합성 데이터를 사용한다. 이상 군집은
+두 번째 정상 군집과 일부 겹치는 위치에 두었으므로, 어떤 방법으로도 일부 이상은
+잡히지 않는다. 각 방법의 혼동행렬과 단일 정규분포(다변량 홀텔링) 대비 결과를
+콘솔에 출력해 블로그 글의 수치를 재현한다.
 
 실행:
     python series02/nonparametric.py
@@ -13,7 +16,9 @@ import os
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
+from scipy import stats
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
@@ -41,6 +46,7 @@ def run_gmm(X_train, df_inference):
     df_inference = df_inference.copy()
     df_inference["prediction"] = pred
     print(f"[GMM] 이상 판정 수={sum(pred == 'anomaly')}")
+    print(f"[GMM] 혼동행렬(실제 x 예측):\n{pd.crosstab(df_inference['label'], pred)}")
 
     x1 = np.linspace(df_inference["x1"].min() - 2, df_inference["x1"].max() + 2, 200)
     x2 = np.linspace(df_inference["x2"].min() - 1, df_inference["x2"].max() + 1, 200)
@@ -60,6 +66,19 @@ def run_gmm(X_train, df_inference):
     print(f"저장됨: {path}")
 
 
+def compare_single_gaussian(X_train, df_inference):
+    """같은 두 군집 데이터를 정규분포 하나(다변량 홀텔링 이론)로 봤을 때의 결과를 GMM과 비교한다"""
+    mean_vec = np.mean(X_train, axis=0)
+    cov_inv = np.linalg.inv(np.cov(X_train.T, ddof=0))
+    anomaly_threshold = stats.chi2.ppf(1 - TARGET_FP_RATE, df=X_train.shape[1])
+
+    X_inf = df_inference[["x1", "x2"]].to_numpy()
+    centered = X_inf - mean_vec
+    scores = np.sum((centered @ cov_inv) * centered, axis=1)
+    pred = np.where(scores > anomaly_threshold, "anomaly", "normal")
+    print(f"[단일 정규분포 비교] 혼동행렬(실제 x 예측):\n{pd.crosstab(df_inference['label'], pred)}")
+
+
 def run_knn(X_train, df_inference):
     X_for_train, X_for_threshold = train_test_split(X_train, train_size=0.5, random_state=42)
     X_inf = df_inference[["x1", "x2"]].to_numpy()
@@ -76,6 +95,11 @@ def run_knn(X_train, df_inference):
         X_th_std = pipe.named_steps["scaler"].transform(X_for_threshold)
         distances, _ = pipe.named_steps["knn"].kneighbors(X_th_std)
         anomaly_threshold = np.quantile(distances[:, -1], 1 - TARGET_FP_RATE)
+
+        X_inf_std = pipe.named_steps["scaler"].transform(X_inf)
+        distances_inf, _ = pipe.named_steps["knn"].kneighbors(X_inf_std)
+        pred_inf = np.where(distances_inf[:, -1] > anomaly_threshold, "anomaly", "normal")
+        print(f"[kNN k={k}] 혼동행렬(실제 x 예측):\n{pd.crosstab(df_inference['label'], pred_inf)}")
 
         x1 = np.linspace(df_inference["x1"].min() - 2, df_inference["x1"].max() + 2, 150)
         x2 = np.linspace(df_inference["x2"].min() - 1, df_inference["x2"].max() + 1, 150)
@@ -102,4 +126,5 @@ def run_knn(X_train, df_inference):
 if __name__ == "__main__":
     X_train, df_inference = generate_bimodal_dataset()
     run_gmm(X_train, df_inference)
+    compare_single_gaussian(X_train, df_inference)
     run_knn(X_train, df_inference)

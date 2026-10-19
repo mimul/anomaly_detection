@@ -88,6 +88,11 @@ def plot_mahalanobis_taguchi_sn(df_inf, mean_vec, cov_matrix, anomaly_threshold)
         print("[마할라노비스-다구치법] 이상 판정된 데이터가 없어 SN비를 계산하지 않았다")
         return
 
+    # 이상 사례마다 어느 변수의 SN비가 더 큰지 세어, 기여가 큰 변수를 확인한다
+    sn_wide = df_sn.pivot(index="index", columns="feature", values="sn_ratio")
+    n_temp2_larger = int((sn_wide["temp2"] > sn_wide["temp1"]).sum())
+    print(f"[마할라노비스-다구치법] 이상 {len(sn_wide)}건 중 temp2의 SN비가 temp1보다 큰 사례={n_temp2_larger}건")
+
     fig, ax = plt.subplots(figsize=(5, 5))
     sns.barplot(data=df_sn, x="index", y="sn_ratio", hue="feature",
                 palette=["#999999", "#111111"], ax=ax)

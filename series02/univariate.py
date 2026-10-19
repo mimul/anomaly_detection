@@ -13,6 +13,7 @@ import os
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy import stats
 
@@ -66,6 +67,11 @@ def plot_hotelling_threshold(df_train, df_inference):
     df_inf["anomaly_score"] = ((x_inf - fitted_mean) / fitted_std) ** 2
     pred = np.where(df_inf["anomaly_score"] > anomaly_threshold, "anomaly", "normal")
     print(f"[홀텔링 1변량] 추론 결과: {count_labels(pred)}")
+    # 판정이 실제 라벨과 일치하는지, 두 집단의 점수가 임계값을 사이에 두고 나뉘는지 확인한다
+    print(f"[홀텔링 1변량] 혼동행렬(실제 x 예측):\n{pd.crosstab(df_inf['label'], pred)}")
+    score_normal = df_inf.loc[df_inf["label"] == "normal", "anomaly_score"]
+    score_anomaly = df_inf.loc[df_inf["label"] == "anomaly", "anomaly_score"]
+    print(f"[홀텔링 1변량] 정상 최대 점수={score_normal.max():.2f}, 이상 최소 점수={score_anomaly.min():.2f}")
 
     fig, ax = plt.subplots(figsize=(5, 5))
     df_norm = df_inf[df_inf["label"] == "normal"]
@@ -75,8 +81,9 @@ def plot_hotelling_threshold(df_train, df_inference):
     sns.histplot(df_anom["anomaly_score"], binwidth=1, color="#111111", ax=ax,
                  stat="density", label="anomaly")
     ax.axvline(anomaly_threshold, color="black", lw=2)
-    ax.text(anomaly_threshold, ax.get_ylim()[1] * 0.9, f"threshold={anomaly_threshold:.2f}",
-            ha="center", va="bottom")
+    # 글자가 임계값 세로선에 가려지지 않도록 선의 오른쪽에 붙인다
+    ax.text(anomaly_threshold + 0.4, ax.get_ylim()[1] * 0.9, f"threshold={anomaly_threshold:.2f}",
+            ha="left", va="bottom")
     ax.legend()
 
     path = os.path.join(OUTPUT_DIR, "hotelling-threshold.png")

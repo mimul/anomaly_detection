@@ -9,7 +9,8 @@ scikit-learn의 BayesianRidge를 그대로 사용한다. 반면 이항 로지스
 
 이항 로지스틱 회귀는 2편에서도 쓴 NBA 3점슛 성공률 데이터를, 포아송 회귀는
 미국 지질조사국(USGS)의 지진 데이터와 스미스소니언 박물관의 화산 데이터를 결합한
-국가별 데이터를 사용한다(원 데이터 출처는 책 저장소가 정리해 배포한 CSV를 그대로 사용).
+국가별 데이터를 사용한다. NBA 데이터 CSV는 series02/datasets/에 있고(원 출처 NBA.com/stats,
+BSD-3-Clause 사본), 지진·화산 데이터는 series03/datasets/에 있다.
 
 실행:
     python series03/bayesian.py
@@ -31,10 +32,7 @@ from regression import YEARS_TO_SHOW, _plot_multivariate_grid
 OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-BASE_URL = (
-    "https://raw.githubusercontent.com/ghmagazine/python_anomaly_detection_book"
-    "/refs/heads/main/notebooks/datasets"
-)
+NBA_DATA_DIR = "series02/datasets"  # 2편과 같은 NBA 3점슛 데이터 CSV 위치
 
 
 def metropolis_hastings(log_posterior, init, step, n_iter=8000, burn=2000, seed=42):
@@ -95,9 +93,9 @@ def bayesian_linear_regression():
 
 
 def _load_nba_data():
-    df_train = pd.read_csv(f"{BASE_URL}/player_stats_2022.csv")
+    df_train = pd.read_csv(f"{NBA_DATA_DIR}/player_stats_2022.csv")
     df_train = df_train[df_train["FG3A"] > 0]
-    df_inf = pd.read_csv(f"{BASE_URL}/player_stats_2023.csv")
+    df_inf = pd.read_csv(f"{NBA_DATA_DIR}/player_stats_2023.csv")
     df_inf = df_inf[df_inf["FG3A"] > 0].copy()
     df_inf["3P%"] = df_inf["FG3M"] / df_inf["FG3A"]
     return df_train, df_inf
