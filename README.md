@@ -2,9 +2,21 @@
 
 이상탐지 공부 시리즈([mimul.com](https://mimul.com))에서 쓰는 예제 코드 저장소입니다.
 
+## 블로그 글
+
+각 디렉터리는 아래 블로그 글의 예제 코드입니다. 코드를 읽다가 설명이 필요하면 해당 글로 들어가면 됩니다.
+
+| 디렉터리 | 편 | 블로그 글 |
+|---|---|---|
+| `series01/` | 1편 | [이상탐지 기초, EDA부터 SVM·로지스틱 회귀 지도학습까지](https://www.mimul.com/blog/anomaly-detection-basic/) |
+| `series02/` | 2편 | [비지도학습 이상탐지, 확률분포부터 다변량 기법까지 정리](https://www.mimul.com/blog/anomaly-detection-unsupervised/) |
+| `series03/` | 3편 | [회귀와 베이지안 모델링으로 조건부 정상 범위를 이상탐지에 적용하기](https://www.mimul.com/blog/anomaly-detection-bayesian-regression/) |
+| `series04/` | 4편 | [시계열 이상탐지를 거리·밀도·예측 기반 프로세스 분류체계로 정리하기](https://www.mimul.com/blog/anomaly-detection-time-series/) |
+| `series05/` | 5편 | [이상탐지 모델을 전처리·성능평가·교차검증·벤치마크로 검증하기](https://www.mimul.com/blog/anomaly-detection-evaluation/) |
+
 ## 구조
 
-시리즈 편 번호를 그대로 디렉터리 이름으로 씁니다.
+시리즈 편 번호를 그대로 디렉터리 이름으로 씁니다. 각 디렉터리가 어느 글의 예제인지는 위 표를 참고하세요.
 
 ```
 series01/
