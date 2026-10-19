@@ -59,6 +59,14 @@ def discord_based_anomaly_detection():
         hit = any(s <= a["end"] and s + window >= a["start"] for s in discord_starts)
         print(f"  - {a['type']} 이상(구간 {a['start']}~{a['end']}) 탐지 여부: {hit}")
 
+    # 상위 k개에 들지 못한 이상도 프로파일을 얼마나 올리는지 확인한다
+    # (블로그 글: 점 이상은 놓치는 게 아니라 상위 3개 판정에서 순위가 밀린 것)
+    baseline = np.median(profile)
+    for a in anomalies:
+        lo, hi = max(0, a["start"] - window + 1), min(len(profile), a["end"] + 1)
+        print(f"  - {a['type']} 이상을 포함한 부분열의 프로파일 최대={profile[lo:hi].max():.2f} "
+              f"(정상 구간 중앙값 {baseline:.2f})")
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7, 5), sharex=True)
     ax1.plot(series, color="#999999", lw=1)
     for a in anomalies:
